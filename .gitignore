@@ -1,0 +1,46 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# Environment files
+.env
+.env.*
+
+# IDE / editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependency directories
+jspm_packages/
+
+# Misc
+.cache/
+coverage/
+*.tgz
+
+# Three.js project assets
+*.tmp
+*.temp
+
+# Ignore build artifacts if using webpack/rollup
+*.map
