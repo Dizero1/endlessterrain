@@ -1,0 +1,234 @@
+/* ============================================================
+   全局重置 / Global reset
+   消除所有元素的默认 margin/padding，统一盒模型
+   Remove default margin/padding from all elements, unify box model
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* 页面与 body 铺满全屏，隐藏滚动条，深色背景
+   Page and body fill the full screen, hide scrollbars, dark background */
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e14; }
+
+/* canvas 块级显示，防止底部产生空隙
+   Block display prevents gap below canvas */
+canvas { display: block; }
+
+/* ============================================================
+   HUD 信息面板 + 底部操作提示 — 共享基础样式
+   HUD info panel + bottom controls — shared base styles
+   半透明毛玻璃背景，固定在屏幕上，不遮挡鼠标事件
+   Semi-transparent frosted-glass background, fixed on screen, non-blocking
+   ============================================================ */
+#hud, #controls {
+  position: fixed;
+  padding: 14px 18px;
+  /* 半透明深色背景 / Semi-transparent dark background */
+  background: rgba(10, 14, 20, 0.72);
+  /* CSS 毛玻璃模糊效果 / CSS backdrop blur (frosted glass) */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #d8e0ea;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  /* 默认不拦截鼠标事件，子元素按需开启
+     Do not block mouse events by default; children enable as needed */
+  pointer-events: none;
+  user-select: none;
+}
+
+/* HUD 位于左上角 / HUD positioned top-left */
+#hud { top: 16px; left: 16px; }
+
+/* 操作提示位于左下角，字号稍小 / Controls hint at bottom-left, slightly smaller */
+#controls { bottom: 16px; left: 16px; font-size: 11px; color: #8a96a6; }
+
+/* HUD 内的标签文字（小写字母全大写显示）
+   HUD label text (uppercase via text-transform) */
+#hud .label { color: #6b7989; text-transform: uppercase; font-size: 10px; letter-spacing: 0.12em; }
+
+/* HUD 内的数值文字（绿色调）/ HUD value text (green tint) */
+#hud .val { color: #a8d5ba; }
+
+/* HUD 顶部标题 / HUD title */
+#hud .title { color: #fff; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.08em; }
+
+/* 操作提示中的键盘按键样式 / Keyboard key style in controls hint */
+#controls kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  color: #d8e0ea;
+  font-size: 10px;
+  margin: 0 2px;
+}
+
+/* ============================================================
+   树木开关按钮 / Trees toggle button
+   开启状态绿色调，关闭状态变红
+   Green tint when ON, red tint when OFF
+   ============================================================ */
+#btn-trees {
+  margin-top: 8px;
+  padding: 5px 10px;
+  background: rgba(168, 213, 186, 0.12);
+  border: 1px solid rgba(168, 213, 186, 0.35);
+  border-radius: 3px;
+  color: #a8d5ba;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  pointer-events: auto; /* 需要响应鼠标 / Must receive mouse events */
+  transition: background 0.15s, border-color 0.15s;
+}
+#btn-trees:hover { background: rgba(168, 213, 186, 0.22); }
+/* OFF 状态：红色调 / OFF state: red tint */
+#btn-trees.off {
+  background: rgba(180, 130, 130, 0.10);
+  border-color: rgba(180, 130, 130, 0.30);
+  color: #c89898;
+}
+
+/* ============================================================
+   阴影开关按钮 / Shadows toggle button
+   开启状态金黄色调，关闭状态变灰
+   Gold tint when ON, grey when OFF
+   ============================================================ */
+#btn-shadows {
+  margin-top: 6px;
+  padding: 5px 10px;
+  background: rgba(216, 195, 140, 0.12);
+  border: 1px solid rgba(216, 195, 140, 0.35);
+  border-radius: 3px;
+  color: #d8c38c;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s, border-color 0.15s;
+}
+#btn-shadows:hover { background: rgba(216, 195, 140, 0.22); }
+/* OFF 状态：灰色调 / OFF state: grey tint */
+#btn-shadows.off {
+  background: rgba(120, 120, 120, 0.10);
+  border-color: rgba(120, 120, 120, 0.30);
+  color: #888;
+}
+
+/* ============================================================
+   滑块行（太阳高度 / 方位角）
+   Slider rows (sun elevation / azimuth)
+   水平 flex 布局：标签 + 滑块 + 数值
+   Horizontal flex: label + range input + value display
+   ============================================================ */
+#hud .slider {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  font-size: 10px;
+}
+/* 固定宽度标签，防止滑块随文字长短抖动
+   Fixed-width label prevents slider from shifting */
+#hud .slider .label {
+  flex-shrink: 0;
+  width: 60px;
+}
+/* 滑块本体，主题色跟随品牌绿 / Range input, accent color matches brand green */
+#hud .slider input[type=range] {
+  flex: 1;
+  width: 110px;
+  accent-color: #a8d5ba;
+  pointer-events: auto;
+}
+/* 右对齐数值显示 / Right-aligned value display */
+#hud .slider .val {
+  flex-shrink: 0;
+  width: 36px;
+  text-align: right;
+}
+
+/* ============================================================
+   种子输入行 / Seed input row
+   水平 flex 布局：标签 + 文本框 + 生成按钮
+   Horizontal flex: label + text input + generate button
+   ============================================================ */
+#hud .seed-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  font-size: 10px;
+}
+#hud .seed-row .label {
+  flex-shrink: 0;
+  width: 60px;
+  color: #6b7989;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+/* 文本输入框，半透明深色背景 / Text input, semi-transparent dark background */
+#hud .seed-row input[type=text] {
+  flex: 1;
+  min-width: 0; /* 允许 flex 收缩 / Allow flex shrink */
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 3px;
+  color: #d8e0ea;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 10px;
+  padding: 3px 6px;
+  pointer-events: auto;
+  transition: border-color 0.15s;
+}
+/* 聚焦时边框高亮绿色 / Focus state: green border highlight */
+#hud .seed-row input[type=text]:focus {
+  outline: none;
+  border-color: rgba(168, 213, 186, 0.55);
+}
+/* 生成按钮，与树木按钮同色系 / Generate button, same color as trees button */
+#btn-seed-apply {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  background: rgba(168, 213, 186, 0.12);
+  border: 1px solid rgba(168, 213, 186, 0.35);
+  border-radius: 3px;
+  color: #a8d5ba;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s;
+}
+#btn-seed-apply:hover { background: rgba(168, 213, 186, 0.25); }
+
+/* ============================================================
+   全局错误提示框 / Global error overlay
+   居中显示，仅在 WebGL 不可用或脚本抛出异常时出现
+   Centered overlay, only shown when WebGL is unavailable or script throws
+   ============================================================ */
+#error {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 24px 32px;
+  background: rgba(40, 10, 10, 0.9);
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  border-radius: 8px;
+  color: #ffb8b8;
+  font-family: monospace;
+  font-size: 13px;
+  max-width: 600px;
+  display: none; /* 默认隐藏，JS 检测到错误时改为 block / Hidden by default */
+  white-space: pre-wrap; /* 保留错误堆栈换行 / Preserve stack trace newlines */
+  z-index: 1000;
+}

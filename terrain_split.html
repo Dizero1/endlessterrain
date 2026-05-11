@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <!-- 页面标题 / Page title -->
+  <title>Infinite Terrain Generator</title>
+  <!-- 引入外部样式表 / Import external stylesheet -->
+  <link rel="stylesheet" href="terrain.css">
+</head>
+<body>
+
+<!-- WebGL 渲染画布，占满全屏 / WebGL canvas, fills the full screen -->
+<canvas id="canvas"></canvas>
+
+<!-- ============================================================
+     HUD：左上角信息面板与控制按钮
+     HUD: Top-left info panel and control buttons
+     ============================================================ -->
+<div id="hud">
+
+  <!-- 标题 / Title -->
+  <div class="title">TERRAIN ENGINE</div>
+
+  <!-- 实时统计：当前已加载区块数 / Stats: number of loaded chunks -->
+  <div>
+    <span class="label">chunks:</span>
+    <span class="val" id="stat-chunks">0</span>
+  </div>
+
+  <!-- 实时统计：摄像机目标点的 XZ 坐标 / Stats: camera target XZ position -->
+  <div>
+    <span class="label">position:</span>
+    <span class="val" id="stat-pos">0, 0</span>
+  </div>
+
+  <!-- 实时统计：帧率 / Stats: frames per second -->
+  <div>
+    <span class="label">fps:</span>
+    <span class="val" id="stat-fps">0</span>
+  </div>
+
+  <!-- 树木开关按钮（点击或按 T 键切换）/ Trees toggle button (click or press T) -->
+  <button id="btn-trees">trees: ON</button>
+
+  <!-- 阴影开关按钮 / Shadow toggle button -->
+  <button id="btn-shadows">shadows: ON</button>
+
+  <!-- 太阳高度角滑块（5°~89°）/ Sun elevation slider (5°~89°) -->
+  <div class="slider">
+    <span class="label">sun height</span>
+    <input type="range" id="sun-elev" min="5" max="89" value="45">
+    <span class="val" id="sun-elev-val">45°</span>
+  </div>
+
+  <!-- 太阳方位角滑块（0°~360°）/ Sun azimuth slider (0°~360°) -->
+  <div class="slider">
+    <span class="label">sun angle</span>
+    <input type="range" id="sun-azim" min="0" max="360" value="135">
+    <span class="val" id="sun-azim-val">135°</span>
+  </div>
+
+  <!-- 种子输入行：输入数字或字符串后点击"生成"重新生成地形
+       Seed input row: enter a number or string, click "生成" to regenerate terrain -->
+  <div class="seed-row">
+    <span class="label">seed</span>
+    <input type="text" id="seed-input" value="42"
+           placeholder="输入种子… / Enter seed…"
+           maxlength="32" spellcheck="false">
+    <button id="btn-seed-apply">生成</button>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     左下角键盘/鼠标操作提示
+     Bottom-left keyboard / mouse control hints
+     ============================================================ -->
+<div id="controls">
+  <!-- 平移 / Pan -->
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> pan &nbsp;·&nbsp;
+  <!-- 升降 / Lift -->
+  <kbd>Space</kbd><kbd>Shift</kbd> up/down &nbsp;·&nbsp;
+  <!-- 鼠标拖拽旋转视角 / Drag mouse to rotate view -->
+  drag mouse to look &nbsp;·&nbsp;
+  <!-- 滚轮或按键缩放 / Scroll wheel or keys to zoom -->
+  wheel/<kbd>Q</kbd><kbd>E</kbd> zoom &nbsp;·&nbsp;
+  <!-- 树木开关 / Toggle trees -->
+  <kbd>T</kbd> trees &nbsp;·&nbsp;
+  <!-- 重置摄像机 / Reset camera -->
+  <kbd>R</kbd> reset
+</div>
+
+<!-- ============================================================
+     全局错误提示框（WebGL 不可用或脚本报错时显示）
+     Global error overlay (shown when WebGL is unavailable or script throws)
+     ============================================================ -->
+<div id="error"></div>
+
+<!-- 引入核心逻辑脚本 / Import core logic script -->
+<script src="terrain.js"></script>
+
+</body>
+</html>
