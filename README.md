@@ -1,33 +1,50 @@
 # endlessterrain
-A Computer Graphic project of terrain generator
+A Computer Graphic project for procedural terrain generation.
 
 # Schedule
-1. Seed *   
-   Basic random number generator
-   ```js
-   function random2(i,j,seed){return float}
-   ```
-2. Noise *  
-   Math gen
-   ```js
-   //x,y or Vector2
-   function noise(x,y){return height:float}
-   ```
-3. buffer *     
-   Use noise to create terrain
-   ```js
-   //or chunk x,y
-   function buffer(chunkid){return BufferGeometry}
-   ```
-4. water    
-   Add water to low place
-5. color shader *   
-   Based on height, slope, others to color
-6. tree     
-   Gen tree with change of height,shape, color
-7. light
-   1. sunlight *
-   2. shadow *
-   3. fog
-8. chunk render *   
-   Use seed to make continous terrain, render based on camera. Calculate distance, contorl show and hide
+## Phase 1: Core terrain generation
+1. Noise function *
+   - Generate height values from coordinates
+   - `function noise(x, y) { return height: float }`
+2. Terrain buffer *
+   - Create geometry from noise values
+   - `function buffer(chunkId) { return BufferGeometry }`
+
+## Phase 2: Visual enhancement
+3. Color shader *
+   - Color terrain by height, slope, and other factors
+4. Water
+   - Add water to low areas and lakes
+5. Trees
+   - combined with trunk and just ep leaves
+   - Generate trees with variation in height, shape, and color
+
+## Phase 3: Lighting and rendering
+7. Lighting
+   - Sunlight *
+   - Shadow *
+   - Fog
+8. Chunk rendering *
+   - Use seed for continuous terrain across chunks
+   - Render based on camera distance
+   - Control show/hide of chunks for performance
+
+## Status legend
+- `*` completed or implemented
+- pending items are planned for the next iteration
+
+## Next milestones
+- complete water system
+- add vegetation
+- refine fog and atmosphere
+- optimize chunk streaming and LOD
+
+## Current status
+- Terrain geometry generation: completed
+- Colorized terrain rendering: completed
+- Fog and camera controls: added
+
+## Run locally
+1. Install dependencies: `npm install`
+2. Start a local server: `npm run start`
+3. Open the served page in your browser.
