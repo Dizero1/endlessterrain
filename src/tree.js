@@ -156,8 +156,8 @@ export function generateTrees(terrainMesh, options = {}) {
   const treeGroup = new THREE.Group();
   treeGroup.name = `trees-${params.lod}`;
 
-  for (let row = 0; row <= params.segmentsY; row += params.sampleStep) {
-    for (let col = 0; col <= params.segmentsX; col += params.sampleStep) {
+  for (let row = 0; row < params.segmentsY; row += params.sampleStep) {
+    for (let col = 0; col < params.segmentsX; col += params.sampleStep) {
       if (random() > params.density) continue;
 
       const index = row * stride + col;

@@ -1,5 +1,5 @@
 import * as THREE from "../build/three.module.js";
-import { OrbitControls } from "../build/controls/OrbitControls.js";
+import { PointerLockControls } from "../build/controls/PointerLockControls.js";
 import { createTerrainChunk } from "./chunk.js";
 import { GUI } from "../build/gui/lil-gui.module.min.js";
 
@@ -7,13 +7,56 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0d1725);
 scene.fog = new THREE.FogExp2(0x0d1725, 0.005);
 
+function createSkySphere() {
+  const geometry = new THREE.SphereGeometry(600, 32, 16);
+  const material = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      topColor: { value: new THREE.Color(0x6ea6d8) },
+      horizonColor: { value: new THREE.Color(0xdde8ef) },
+      bottomColor: { value: new THREE.Color(0x1d2f3a) },
+    },
+    vertexShader: `
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 topColor;
+      uniform vec3 horizonColor;
+      uniform vec3 bottomColor;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        float h = normalize(vWorldPosition).y * 0.5 + 0.5;
+        vec3 lower = mix(bottomColor, horizonColor, smoothstep(0.0, 0.55, h));
+        vec3 upper = mix(horizonColor, topColor, smoothstep(0.45, 1.0, h));
+        vec3 color = mix(lower, upper, smoothstep(0.45, 0.7, h));
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+
+  const skySphere = new THREE.Mesh(geometry, material);
+  skySphere.name = "sky-sphere";
+  skySphere.renderOrder = -1;
+  skySphere.frustumCulled = false;
+
+  return skySphere;
+}
+
 const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
   1200,
 );
-camera.position.set(20, 0, 40);
+camera.position.set(20, -10, 40);
 camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -23,20 +66,106 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, -30, 0);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.maxPolarAngle = Math.PI * 0.49;
-controls.minDistance = 10;
-controls.maxDistance = 100;
+const clock = new THREE.Clock();
+const skySphere = createSkySphere();
+scene.add(skySphere);
+
+const controls = new PointerLockControls(camera, renderer.domElement);
+controls.pointerSpeed = 1.5;
+controls.minPolarAngle = Math.PI * 0.01;
+controls.maxPolarAngle = Math.PI * 0.99;
+controls.enabled = true;
+
+const movementState = {
+  forward: false,
+  backward: false,
+  left: false,
+  right: false,
+  up: false,
+  down: false,
+};
+
+const cameraController = {
+  moveSpeed: 24,
+};
+
+function onMouseDown(event) {
+  if (event.button !== 0) return;
+  if (!controls.isLocked) {
+    controls.lock();
+  }
+}
+
+function setMovementKey(code, isPressed) {
+  if (code === "KeyW") movementState.forward = isPressed;
+  if (code === "KeyS") movementState.backward = isPressed;
+  if (code === "KeyA") movementState.left = isPressed;
+  if (code === "KeyD") movementState.right = isPressed;
+  if (code === "Space") movementState.up = isPressed;
+  if (code === "ShiftLeft" || code === "ShiftRight") movementState.down = isPressed;
+}
+
+function onKeyDown(event) {
+  if (event.code === "Space") {
+    event.preventDefault();
+  }
+  setMovementKey(event.code, true);
+}
+
+function onKeyUp(event) {
+  setMovementKey(event.code, false);
+}
+
+function updateCameraMovement(deltaTime) {
+  const distance = cameraController.moveSpeed * deltaTime;
+
+  if (movementState.forward) controls.moveForward(distance);
+  if (movementState.backward) controls.moveForward(-distance);
+  if (movementState.left) controls.moveRight(-distance);
+  if (movementState.right) controls.moveRight(distance);
+  if (movementState.up) camera.position.y += distance;
+  if (movementState.down) camera.position.y -= distance;
+}
+
+function applyChunkFloatSetting(enabled) {
+  if (enabled) {
+    for (const chunk of activeChunks.values()) {
+      if (chunk.object.position.y < 0) {
+        chunk.object.userData.transitionState = "entering";
+      } else {
+        chunk.object.userData.transitionState = "idle";
+        chunk.object.position.y = 0;
+      }
+    }
+    return;
+  }
+
+  for (const chunk of activeChunks.values()) {
+    chunk.object.userData.transitionState = "idle";
+    chunk.object.position.y = 0;
+  }
+
+  for (const [chunkId, chunk] of retiringChunks.entries()) {
+    retiringChunks.delete(chunkId);
+    disposeChunk(chunk);
+  }
+}
+
+renderer.domElement.addEventListener("mousedown", onMouseDown);
+window.addEventListener("keydown", onKeyDown);
+window.addEventListener("keyup", onKeyUp);
 
 const gui = new GUI();
 let CONFIG = {
   seed: 42,
-  width: 128,
-  depth: 128,
-  chunkGridSize: 4,
+  width: 32,
+  depth: 32,
+  renderRadius: 5,
+  highLodRadius: 3,
+  mediumLodRadius: 4,
+  chunkTransitionEnabled: true,
+  chunkTransitionSpeed: 42,
+  chunkFloatDistance: 18,
   heightScale: 40,
   noiseScale: 0.02,
   octaves: 5,
@@ -50,6 +179,7 @@ let CONFIG = {
   waterEnabled: true,
   waterLevel: 0.38,
   waterOpacity: 0.55,
+  waterReflectionDistance: 42,
 };
 
 gui
@@ -64,6 +194,17 @@ gui
   .add(CONFIG, "noiseScale", 0.01, 0.2, 0.001)
   .name("Noise Scale")
   .onChange(regenerateTerrain);
+gui
+  .add(CONFIG, "renderRadius", 1, 8, 1)
+  .name("Render Radius")
+  .onChange(regenerateTerrain);
+gui
+  .add(CONFIG, "chunkTransitionEnabled")
+  .name("Chunk Float")
+  .onChange((value) => {
+    CONFIG.chunkTransitionEnabled = value;
+    applyChunkFloatSetting(value);
+  });
 gui
   .add(CONFIG, "heightScale", 10, 80, 1)
   .name("Height Scale")
@@ -83,10 +224,6 @@ treeFolder
   .add(CONFIG, "treeDensity", 0, 1, 0.05)
   .name("Density")
   .onChange(regenerateTerrain);
-treeFolder
-  .add(CONFIG, "treeLod", ["high", "medium", "low"])
-  .name("LOD")
-  .onChange(regenerateTerrain);
 
 const waterFolder = gui.addFolder("Water Settings");
 waterFolder
@@ -101,6 +238,10 @@ waterFolder
   .add(CONFIG, "waterOpacity", 0, 1, 0.01)
   .name("Opacity")
   .onChange(regenerateTerrain);
+waterFolder
+  .add(CONFIG, "waterReflectionDistance", 8, 96, 1)
+  .name("Reflect Dist")
+  .onChange(() => {});
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.16);
 const sunLight = new THREE.DirectionalLight(0xfff4d8, 5.0);
@@ -115,67 +256,223 @@ sunLight.shadow.mapSize.set(2048, 2048);
 const hemisphereLight = new THREE.HemisphereLight(0x7ea2d8, 0x223128, 0.25);
 scene.add(ambientLight, sunLight, hemisphereLight);
 
-const grid = new THREE.GridHelper(360, 36, 0x334455, 0x112233);
-grid.position.y = -18;
-scene.add(grid);
+// const grid = new THREE.GridHelper(360, 36, 0x334455, 0x112233);
+// grid.position.y = -18;
+// scene.add(grid);
 
-let activeChunks = [];
+const activeChunks = new Map();
+const retiringChunks = new Map();
+let lastCameraChunkX = Number.NaN;
+let lastCameraChunkZ = Number.NaN;
 
-function regenerateTerrain() {
-  activeChunks.forEach((chunk) => {
-    scene.remove(chunk.object);
-    chunk.dispose();
+function getCameraChunkCoordinate(position, chunkSize) {
+  return Math.floor((position + chunkSize * 0.5) / chunkSize);
+}
+
+function getChunkLodLevel(chunkX, chunkZ, centerChunkX, centerChunkZ) {
+  const distance = Math.max(
+    Math.abs(chunkX - centerChunkX),
+    Math.abs(chunkZ - centerChunkZ),
+  );
+  const highLodRadius = Math.min(CONFIG.highLodRadius, CONFIG.renderRadius);
+  const mediumLodRadius = Math.min(
+    Math.max(CONFIG.mediumLodRadius, highLodRadius + 1),
+    CONFIG.renderRadius,
+  );
+
+  if (distance <= highLodRadius) return "high";
+  if (distance <= mediumLodRadius) return "medium";
+  return "low";
+}
+
+function getChunkLodSettings(lodLevel) {
+  if (lodLevel === "high") {
+    return {
+      treeSampleStep: CONFIG.treeSampleStep,
+      treeDensity: CONFIG.treeDensity,
+      treeLod: CONFIG.treeLod,
+    };
+  }
+
+  if (lodLevel === "medium") {
+    return {
+      treeSampleStep: Math.max(CONFIG.treeSampleStep * 2, 4),
+      treeDensity: CONFIG.treeDensity * 0.6,
+      treeLod: CONFIG.treeLod === "high" ? "medium" : CONFIG.treeLod,
+    };
+  }
+
+  return {
+    treeSampleStep: Math.max(CONFIG.treeSampleStep * 4, 8),
+    treeDensity: CONFIG.treeDensity * 0.25,
+    treeLod: "low",
+  };
+}
+
+function createChunkAt(chunkX, chunkZ, lodLevel, animate = CONFIG.chunkTransitionEnabled) {
+  const lodSettings = getChunkLodSettings(lodLevel);
+  const chunk = createTerrainChunk({
+    chunkX,
+    chunkZ,
+    yOffset: -18,
+    terrain: {
+      width: CONFIG.width,
+      depth: CONFIG.depth,
+      heightScale: CONFIG.heightScale,
+      noiseScale: CONFIG.noiseScale,
+      octaves: CONFIG.octaves,
+      seed: CONFIG.seed,
+      segmentsX: 64,
+      segmentsY: 64,
+    },
+    trees: {
+      sampleStep: lodSettings.treeSampleStep,
+      minHeight: CONFIG.treeMinHeight,
+      maxHeight: CONFIG.treeMaxHeight,
+      maxSlope: CONFIG.treeMaxSlope,
+      scaleMin: CONFIG.treeScale,
+      scaleMax: CONFIG.treeScale,
+      density: lodSettings.treeDensity,
+      lod: lodSettings.treeLod,
+    },
+    water: {
+      enabled: CONFIG.waterEnabled,
+      level: CONFIG.waterLevel,
+      opacity: CONFIG.waterOpacity,
+    },
   });
-  activeChunks = [];
 
-  const chunkGridSize = CONFIG.chunkGridSize;
-  const chunkWidth = CONFIG.width / chunkGridSize;
-  const chunkDepth = CONFIG.depth / chunkGridSize;
-  const chunkSegmentsX = 256 / chunkGridSize;
-  const chunkSegmentsY = 256 / chunkGridSize;
-  const gridCenterOffset = (chunkGridSize - 1) * 0.5;
+  chunk.object.userData.lodLevel = lodLevel;
+  chunk.object.userData.transitionState = animate ? "entering" : "idle";
+  chunk.object.position.y = animate ? -CONFIG.chunkFloatDistance : 0;
 
-  for (let chunkZ = 0; chunkZ < chunkGridSize; chunkZ++) {
-    for (let chunkX = 0; chunkX < chunkGridSize; chunkX++) {
-      const centerX = (chunkX - gridCenterOffset) * chunkWidth;
-      const centerZ = (chunkZ - gridCenterOffset) * chunkDepth;
-      const chunk = createTerrainChunk({
+  return chunk;
+}
+
+function disposeChunk(chunk) {
+  scene.remove(chunk.object);
+  chunk.dispose();
+}
+
+function retireChunk(chunkId, chunk) {
+  activeChunks.delete(chunkId);
+
+  if (!CONFIG.chunkTransitionEnabled) {
+    disposeChunk(chunk);
+    return;
+  }
+
+  chunk.object.userData.transitionState = "exiting";
+  retiringChunks.set(chunkId, chunk);
+}
+
+function updateChunkTransitions(deltaTime) {
+  const step = CONFIG.chunkTransitionSpeed * deltaTime;
+
+  for (const chunk of activeChunks.values()) {
+    if (chunk.object.userData.transitionState !== "entering") continue;
+
+    chunk.object.position.y = Math.min(chunk.object.position.y + step, 0);
+    if (chunk.object.position.y >= 0) {
+      chunk.object.position.y = 0;
+      chunk.object.userData.transitionState = "idle";
+    }
+  }
+
+  for (const [chunkId, chunk] of retiringChunks.entries()) {
+    chunk.object.position.y = Math.max(
+      chunk.object.position.y - step,
+      -CONFIG.chunkFloatDistance,
+    );
+    if (chunk.object.position.y <= -CONFIG.chunkFloatDistance) {
+      retiringChunks.delete(chunkId);
+      disposeChunk(chunk);
+    }
+  }
+}
+
+function updateChunkRendering(force = false) {
+  const centerChunkX = getCameraChunkCoordinate(camera.position.x, CONFIG.width);
+  const centerChunkZ = getCameraChunkCoordinate(camera.position.z, CONFIG.depth);
+
+  if (
+    !force &&
+    centerChunkX === lastCameraChunkX &&
+    centerChunkZ === lastCameraChunkZ
+  ) {
+    return;
+  }
+
+  lastCameraChunkX = centerChunkX;
+  lastCameraChunkZ = centerChunkZ;
+
+  const desiredChunkIds = new Set();
+
+  for (let dz = -CONFIG.renderRadius; dz <= CONFIG.renderRadius; dz++) {
+    for (let dx = -CONFIG.renderRadius; dx <= CONFIG.renderRadius; dx++) {
+      const chunkX = centerChunkX + dx;
+      const chunkZ = centerChunkZ + dz;
+      const lodLevel = getChunkLodLevel(
         chunkX,
         chunkZ,
-        centerX,
-        centerZ,
-        yOffset: -18,
-        terrain: {
-          width: chunkWidth,
-          depth: chunkDepth,
-          heightScale: CONFIG.heightScale,
-          noiseScale: CONFIG.noiseScale,
-          octaves: CONFIG.octaves,
-          seed: CONFIG.seed,
-          segmentsX: chunkSegmentsX,
-          segmentsY: chunkSegmentsY,
-        },
-        trees: {
-          sampleStep: CONFIG.treeSampleStep,
-          minHeight: CONFIG.treeMinHeight,
-          maxHeight: CONFIG.treeMaxHeight,
-          maxSlope: CONFIG.treeMaxSlope,
-          scaleMin: CONFIG.treeScale,
-          scaleMax: CONFIG.treeScale,
-          density: CONFIG.treeDensity,
-          lod: CONFIG.treeLod,
-        },
-        water: {
-          enabled: CONFIG.waterEnabled,
-          level: CONFIG.waterLevel,
-          opacity: CONFIG.waterOpacity,
-        },
-      });
+        centerChunkX,
+        centerChunkZ,
+      );
+      const chunkId = `${chunkX},${chunkZ}`;
+      desiredChunkIds.add(chunkId);
 
-      activeChunks.push(chunk);
+      const retiringChunk = retiringChunks.get(chunkId);
+      if (retiringChunk) {
+        retiringChunks.delete(chunkId);
+        retiringChunk.object.userData.transitionState = CONFIG.chunkTransitionEnabled
+          ? "entering"
+          : "idle";
+        if (!CONFIG.chunkTransitionEnabled) {
+          retiringChunk.object.position.y = 0;
+        }
+        activeChunks.set(chunkId, retiringChunk);
+      }
+
+      const existingChunk = activeChunks.get(chunkId);
+      if (existingChunk && existingChunk.object.userData.lodLevel === lodLevel) {
+        continue;
+      }
+
+      const isLodReplacement = Boolean(existingChunk);
+      if (existingChunk) {
+        disposeChunk(existingChunk);
+        activeChunks.delete(chunkId);
+      }
+
+      const chunk = createChunkAt(
+        chunkX,
+        chunkZ,
+        lodLevel,
+        CONFIG.chunkTransitionEnabled && !isLodReplacement,
+      );
+      activeChunks.set(chunkId, chunk);
       scene.add(chunk.object);
     }
   }
+
+  for (const [chunkId, chunk] of activeChunks.entries()) {
+    if (desiredChunkIds.has(chunkId)) continue;
+    retireChunk(chunkId, chunk);
+  }
+}
+
+function regenerateTerrain() {
+  for (const chunk of activeChunks.values()) {
+    disposeChunk(chunk);
+  }
+  for (const chunk of retiringChunks.values()) {
+    disposeChunk(chunk);
+  }
+  activeChunks.clear();
+  retiringChunks.clear();
+  lastCameraChunkX = Number.NaN;
+  lastCameraChunkZ = Number.NaN;
+  updateChunkRendering(true);
 }
 
 regenerateTerrain();
@@ -190,7 +487,28 @@ function onWindowResize() {
 
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
+  const deltaTime = clock.getDelta();
+  const elapsedTime = clock.getElapsedTime();
+
+  updateCameraMovement(deltaTime);
+  skySphere.position.copy(camera.position);
+  updateChunkRendering();
+  updateChunkTransitions(deltaTime);
+  activeChunks.forEach((chunk) => {
+    const waterMesh = chunk.waterMesh;
+    if (waterMesh?.userData?.setReflectionEnabled) {
+      const distanceToWater = camera.position.distanceTo(waterMesh.position);
+      waterMesh.userData.setReflectionEnabled(
+        distanceToWater <= CONFIG.waterReflectionDistance,
+      );
+    }
+  });
+  retiringChunks.forEach((chunk) => {
+    const waterMesh = chunk.waterMesh;
+    if (waterMesh?.userData?.setReflectionEnabled) {
+      waterMesh.userData.setReflectionEnabled(false);
+    }
+  });
   renderer.render(scene, camera);
 }
 
