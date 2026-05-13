@@ -44,7 +44,3 @@ A Computer Graphic project for procedural terrain generation.
 - Colorized terrain rendering: completed
 - Fog and camera controls: added
 
-## Run locally
-1. Install dependencies: `npm install`
-2. Start a local server: `npm run start`
-3. Open the served page in your browser.
