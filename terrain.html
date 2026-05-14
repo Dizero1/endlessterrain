@@ -1,0 +1,1089 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Infinite Terrain Generator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e14; }
+  canvas { display: block; }
+
+  #hud, #controls {
+    position: fixed;
+    padding: 14px 18px;
+    background: rgba(10, 14, 20, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: #d8e0ea;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    pointer-events: none;
+    user-select: none;
+  }
+  #controls { bottom: 16px; left: 16px; font-size: 11px; color: #8a96a6; }
+  #hud .label { color: #6b7989; text-transform: uppercase; font-size: 10px; letter-spacing: 0.12em; }
+  #hud .val { color: #a8d5ba; }
+  #hud .title { color: #fff; font-size: 13px; margin-bottom: 6px; letter-spacing: 0.08em; }
+  #controls kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 3px;
+    color: #d8e0ea;
+    font-size: 10px;
+    margin: 0 2px;
+  }
+
+  #btn-trees {
+    margin-top: 8px;
+    padding: 5px 10px;
+    background: rgba(168, 213, 186, 0.12);
+    border: 1px solid rgba(168, 213, 186, 0.35);
+    border-radius: 3px;
+    color: #a8d5ba;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #btn-trees:hover { background: rgba(168, 213, 186, 0.22); }
+  #btn-trees.off {
+    background: rgba(180, 130, 130, 0.10);
+    border-color: rgba(180, 130, 130, 0.30);
+    color: #c89898;
+  }
+
+  #btn-shadows {
+    margin-top: 6px;
+    padding: 5px 10px;
+    background: rgba(216, 195, 140, 0.12);
+    border: 1px solid rgba(216, 195, 140, 0.35);
+    border-radius: 3px;
+    color: #d8c38c;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #btn-shadows:hover { background: rgba(216, 195, 140, 0.22); }
+  #btn-shadows.off {
+    background: rgba(120, 120, 120, 0.10);
+    border-color: rgba(120, 120, 120, 0.30);
+    color: #888;
+  }
+
+  #btn-float {
+    margin-top: 6px;
+    padding: 5px 10px;
+    background: rgba(180, 155, 220, 0.12);
+    border: 1px solid rgba(180, 155, 220, 0.35);
+    border-radius: 3px;
+    color: #c8aae8;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #btn-float:hover { background: rgba(180, 155, 220, 0.22); }
+  #btn-float.off {
+    background: rgba(120, 120, 120, 0.10);
+    border-color: rgba(120, 120, 120, 0.30);
+    color: #888;
+  }
+
+  #hud {
+    top: 16px; left: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+  }
+  #hud::-webkit-scrollbar { width: 4px; }
+  #hud::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  #hud .slider {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+    font-size: 10px;
+  }
+  #hud .slider .label {
+    flex-shrink: 0;
+    width: 76px;
+  }
+  #hud .slider input[type=range] {
+    flex: 1;
+    width: 100px;
+    accent-color: #a8d5ba;
+    pointer-events: auto;
+  }
+  #hud .slider .val {
+    flex-shrink: 0;
+    width: 40px;
+    text-align: right;
+  }
+
+  #hud .seed-row {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+    font-size: 10px;
+  }
+  #hud .seed-row .label {
+    flex-shrink: 0;
+    width: 76px;
+    color: #6b7989;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  #hud input[type=number] {
+    width: 70px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 3px;
+    color: #a8d5ba;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 2px 5px;
+    pointer-events: auto;
+    -moz-appearance: textfield;
+  }
+  #hud input[type=number]::-webkit-inner-spin-button,
+  #hud input[type=number]::-webkit-outer-spin-button { opacity: 0.4; }
+  #hud input[type=number]:focus {
+    outline: none;
+    border-color: rgba(168, 213, 186, 0.5);
+  }
+
+  #hud details { margin-top: 8px; }
+  #hud summary {
+    color: #6b7989;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    pointer-events: auto;
+    user-select: none;
+    list-style: none;
+    padding: 2px 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 4px;
+  }
+  #hud summary::-webkit-details-marker { display: none; }
+  #hud summary::before { content: '▶  '; font-size: 8px; }
+  #hud details[open] > summary::before { content: '▼  '; }
+  #hud .section-content { padding-top: 2px; }
+
+  #error {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 24px 32px;
+    background: rgba(40, 10, 10, 0.9);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    border-radius: 8px;
+    color: #ffb8b8;
+    font-family: monospace;
+    font-size: 13px;
+    max-width: 600px;
+    display: none;
+    white-space: pre-wrap;
+    z-index: 1000;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./build/three.module.js"
+  }
+}
+</script>
+<script>
+(function() {
+  function showError(msg) {
+    var el = document.getElementById('error');
+    if (el) { el.style.display = 'block'; el.textContent = msg; }
+    else { console.error(msg); }
+  }
+  window.addEventListener('error', function(e) {
+    showError('Error: ' + (e.message || e) + '\n\n' + (e.error && e.error.stack || ''));
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    showError('Module error: ' + (e.reason || e) + '\n\n' + (e.reason && e.reason.stack || ''));
+  });
+})();
+</script>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="hud">
+  <div class="title">TERRAIN ENGINE</div>
+  <div><span class="label">chunks:</span> <span class="val" id="stat-chunks">0</span></div>
+  <div><span class="label">position:</span> <span class="val" id="stat-pos">0, 0</span></div>
+  <div><span class="label">fps:</span> <span class="val" id="stat-fps">0</span></div>
+
+  <div class="seed-row">
+    <span class="label">seed</span>
+    <input type="number" id="seed-input" min="0" max="9999" value="42" step="1">
+  </div>
+
+  <button id="btn-trees">trees: ON</button>
+  <button id="btn-shadows">shadows: ON</button>
+  <button id="btn-float">float: ON</button>
+
+  <details open>
+    <summary>Sun</summary>
+    <div class="section-content">
+      <div class="slider">
+        <span class="label">height</span>
+        <input type="range" id="sun-elev" min="5" max="89" value="45">
+        <span class="val" id="sun-elev-val">45°</span>
+      </div>
+      <div class="slider">
+        <span class="label">angle</span>
+        <input type="range" id="sun-azim" min="0" max="360" value="135">
+        <span class="val" id="sun-azim-val">135°</span>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Terrain</summary>
+    <div class="section-content">
+      <div class="slider">
+        <span class="label">noise scale</span>
+        <input type="range" id="noise-scale" min="1" max="40" value="8">
+        <span class="val" id="noise-scale-val">0.008</span>
+      </div>
+      <div class="slider">
+        <span class="label">octaves</span>
+        <input type="range" id="octaves" min="1" max="8" value="6" step="1">
+        <span class="val" id="octaves-val">6</span>
+      </div>
+      <div class="slider">
+        <span class="label">height scale</span>
+        <input type="range" id="height-scale" min="20" max="200" value="100">
+        <span class="val" id="height-scale-val">1.0×</span>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Trees</summary>
+    <div class="section-content">
+      <div class="slider">
+        <span class="label">max slope</span>
+        <input type="range" id="tree-slope" min="10" max="100" value="70">
+        <span class="val" id="tree-slope-val">0.70</span>
+      </div>
+      <div class="slider">
+        <span class="label">density</span>
+        <input type="range" id="tree-density" min="5" max="100" value="85">
+        <span class="val" id="tree-density-val">0.85</span>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Water</summary>
+    <div class="section-content">
+      <div class="slider">
+        <span class="label">level</span>
+        <input type="range" id="water-level" min="-30" max="20" value="-2">
+        <span class="val" id="water-level-val">-1.5</span>
+      </div>
+      <div class="slider">
+        <span class="label">opacity</span>
+        <input type="range" id="water-opacity" min="0" max="100" value="55">
+        <span class="val" id="water-opacity-val">0.55</span>
+      </div>
+      <div class="slider">
+        <span class="label">reflect dist</span>
+        <input type="range" id="water-reflect-dist" min="100" max="1200" value="600" step="50">
+        <span class="val" id="water-reflect-dist-val">600</span>
+      </div>
+    </div>
+  </details>
+</div>
+
+<div id="controls">
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> pan &nbsp;·&nbsp;
+  <kbd>Space</kbd><kbd>Shift</kbd> up/down &nbsp;·&nbsp;
+  drag mouse to look &nbsp;·&nbsp;
+  wheel/<kbd>Q</kbd><kbd>E</kbd> zoom &nbsp;·&nbsp;
+  <kbd>T</kbd> trees &nbsp;·&nbsp;
+  <kbd>R</kbd> reset
+</div>
+
+<div id="error"></div>
+
+<script type="module">
+// ============================================================
+// terrain.html — 使用库函数的精简版地形查看器
+// terrain.html — Lean terrain viewer powered by library modules
+// ============================================================
+import * as THREE from './build/three.module.js';
+import {
+  createTerrainChunk,
+  getChunkLodLevel,
+  getLodSegments,
+  getLodTreeOptions,
+} from './src/chunk.js';
+
+'use strict';
+
+// ============================================================
+// 全局配置 / Global configuration
+// ============================================================
+const CONFIG = {
+  // 区块 / Chunk
+  CHUNK_SIZE:    128,     // 区块边长（世界单位）/ chunk edge length (world units)
+  VIEW_DISTANCE:  10,     // 每方向可见区块数 / visible chunks in each direction
+
+  // LOD 半径（Chebyshev 距离，单位：区块数）
+  // LOD radii (Chebyshev distance in chunk units)
+  LOD_HIGH_RADIUS:   2,   // 高细节半径 / high-detail radius
+  LOD_MEDIUM_RADIUS: 5,   // 中细节半径 / medium-detail radius
+
+  // 噪声 / Noise
+  NOISE_FREQ:    0.008,   // 基础噪声频率 / base noise frequency
+  OCTAVES:           6,   // fBm 倍频层数 / fBm octave count
+  PERSISTENCE:    0.55,   // fBm 振幅衰减 / fBm amplitude decay
+  LACUNARITY:      2.1,   // fBm 频率增长 / fBm frequency growth
+  HEIGHT_SCALE:    1.0,   // 高度缩放乘数（1.0 = 200 世界单位）/ height multiplier (1.0 = 200 units)
+  CLIMATE_FREQ: 0.0008,   // 气候噪声频率（小值=更大气候区）/ climate freq (smaller = bigger zones)
+
+  // 水面 / Water
+  WATER_LEVEL:        -1.5, // 水位（世界单位）/ water level (world units)
+  WATER_OPACITY:      0.55, // 水面叠加透明度 / water overlay opacity
+  WATER_REFLECT_DIST: 600,  // 反射可见距离（超出则关闭 Reflector）
+                             // Reflection cutoff distance (Reflector disabled beyond this)
+
+  // 树木 / Trees
+  TREES_ENABLED:      true,
+  TREES_PER_CHUNK:     500,  // 每区块最大放置尝试次数 / max placement attempts per chunk
+  FOREST_FREQ:      0.0035,  // 森林密度噪声频率 / forest density noise frequency
+  FOREST_THRESHOLD:  0.65,   // 森林判定阈值 / forest threshold
+  FOREST_DENSITY:    0.85,   // 森林内接受率 / in-forest acceptance rate
+  SPARSE_DENSITY:    0.04,   // 林外散布密度 / out-of-forest sparse density
+  TREE_MAX_HEIGHT:      38,  // 树木最大世界高度 / max tree world height
+  TREE_MAX_SLOPE:     0.70,  // 树木放置最大坡度 / max slope for tree placement
+  TREE_BASE_SCALE:      16,  // 树木基础缩放 / base scale
+  TREE_SCALE_VAR:        6,  // 缩放随机变化 / scale randomness
+  TREE_BROADLEAF_PROB: 0.45, // 阔叶树比例（mixed 模式）/ broadleaf ratio in mixed mode
+  TREE_MIN_DIST:        18,  // 树间最小距离 / min spacing between trees
+  TREE_TUNDRA_SUPPRESS: 0.85,// 苔原区树木压制强度 / tundra tree suppression
+
+  // 区块浮入 / 浮出动画（移植自 index.html）
+  // Chunk float-in / float-out animation (ported from index.html)
+  CHUNK_FLOAT_ENABLED: true,
+  CHUNK_FLOAT_DIST:       60,  // 初始沉降距离 / initial sink depth
+  CHUNK_FLOAT_SPEED:      50,  // 上升/下沉速度（单位/秒）/ rise/sink speed (units/sec)
+};
+
+// ============================================================
+// Three.js 基础设置 / Three.js base setup
+// ============================================================
+const canvas   = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type    = THREE.PCFShadowMap;
+
+const scene = new THREE.Scene();
+
+const FOG_NEAR = 700;
+const FOG_FAR  = CONFIG.CHUNK_SIZE * CONFIG.VIEW_DISTANCE;
+
+const horizonColor = new THREE.Color(0xdde8ef);
+renderer.setClearColor(horizonColor, 1);
+scene.fog = new THREE.Fog(horizonColor, FOG_NEAR, FOG_FAR);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, FOG_FAR * 1.3);
+
+// ── 天空球（移植自 index.html）/ Sky sphere (ported from index.html) ─
+function createSkySphere() {
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false,
+    uniforms: {
+      topColor:     { value: new THREE.Color(0x6ea6d8) },
+      horizonColor: { value: new THREE.Color(0xdde8ef) },
+      bottomColor:  { value: new THREE.Color(0x1d2f3a) },
+    },
+    vertexShader: `
+      varying vec3 vWorldPosition;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 topColor, horizonColor, bottomColor;
+      varying vec3 vWorldPosition;
+      void main() {
+        float h = normalize(vWorldPosition).y * 0.5 + 0.5;
+        vec3 lower = mix(bottomColor, horizonColor, smoothstep(0.0, 0.55, h));
+        vec3 upper = mix(horizonColor, topColor,    smoothstep(0.45, 1.0, h));
+        gl_FragColor = vec4(mix(lower, upper, smoothstep(0.45, 0.7, h)), 1.0);
+      }
+    `,
+  });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(FOG_FAR * 0.9, 32, 16), mat);
+  sky.name = 'sky-sphere'; sky.renderOrder = -1; sky.frustumCulled = false;
+  scene.add(sky);
+  return sky;
+}
+const skySphere = createSkySphere();
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ============================================================
+// 光照（移植自 index.html）/ Lighting (ported from index.html)
+// ============================================================
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.16);
+scene.add(ambientLight);
+
+const hemiLight = new THREE.HemisphereLight(0x7ea2d8, 0x223128, 0.25);
+scene.add(hemiLight);
+
+const sunLight = new THREE.DirectionalLight(0xfff4d8, 5.0);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width  = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.left   = -840;
+sunLight.shadow.camera.right  =  840;
+sunLight.shadow.camera.top    =  840;
+sunLight.shadow.camera.bottom = -840;
+sunLight.shadow.camera.near   = 1;
+sunLight.shadow.camera.far    = 2100;
+sunLight.shadow.bias = -0.001;
+sunLight.shadow.camera.updateProjectionMatrix();
+scene.add(sunLight, sunLight.target);
+
+// ── 太阳方向 / Sun direction ──────────────────────────────────
+const SUN = { azimuth: 135 * Math.PI / 180, elevation: 45 * Math.PI / 180 };
+const target = { x: 0, y: 0, z: 0 };
+
+function updateSunDir() {
+  const ce = Math.cos(SUN.elevation), se = Math.sin(SUN.elevation);
+  const ca = Math.cos(SUN.azimuth),   sa = Math.sin(SUN.azimuth);
+  SUN.dx = ce * sa; SUN.dy = se; SUN.dz = ce * ca;
+}
+updateSunDir();
+
+function updateSunLight() {
+  const b = 300;
+  sunLight.position.set(target.x + SUN.dx * b, target.y + SUN.dy * b, target.z + SUN.dz * b);
+  sunLight.target.position.set(target.x, target.y, target.z);
+}
+
+// ============================================================
+// 全局种子 / Global seed
+// ============================================================
+let SEED = 42;
+
+// 水面反射距离平方（帧内缓存，避免每帧重算）
+// Squared water reflection distance (cached per-frame to avoid per-frame sqrt)
+let _waterReflectDist2 = CONFIG.WATER_REFLECT_DIST * CONFIG.WATER_REFLECT_DIST;
+
+// ============================================================
+// 区块构建 / Chunk building
+// ============================================================
+
+/**
+ * 构建单个地形区块（通过 chunk.js 工厂函数 + LOD 辅助工具）。
+ * Build a terrain chunk via the chunk.js factory + LOD helpers.
+ *
+ * @param {number} cx, cz   — 区块网格坐标 / chunk grid coordinates
+ * @param {'high'|'medium'|'low'} lodLevel — LOD 等级 / LOD level
+ * @param {boolean} [animate=true] — 是否播放浮入动画 / whether to play float-in animation
+ */
+function buildChunk(cx, cz, lodLevel, animate = true) {
+  const size = CONFIG.CHUNK_SIZE;
+  const HS   = CONFIG.HEIGHT_SCALE * 200; // 高度缩放（世界单位）/ height scale in world units
+
+  // ── 从 chunk.js LOD 工具获取分段数和树木覆盖参数
+  // ── Get segment count and tree overrides from chunk.js LOD helpers
+  const segs        = getLodSegments(lodLevel);
+  const lodTreeOpts = getLodTreeOptions(lodLevel);
+
+  // 归一化水位（water.js 需要 [0,1] 范围）
+  // Normalised water level (water.js expects [0,1] range)
+  const waterLevelNorm = CONFIG.WATER_LEVEL / (2 * HS) + 0.5;
+
+  const chunk = createTerrainChunk({
+    chunkX:  cx,
+    chunkZ:  cz,
+    yOffset: 0, // 浮入/浮出动画由外部移动 chunk.object.position.y 实现
+                // Float animation is handled externally via chunk.object.position.y
+
+    terrain: {
+      width: size, depth: size,
+      segmentsX:       segs, segmentsY: segs,
+      heightScale:     HS,
+      noiseScale:      CONFIG.NOISE_FREQ,
+      octaves:         CONFIG.OCTAVES,
+      persistence:     CONFIG.PERSISTENCE,
+      lacunarity:      CONFIG.LACUNARITY,
+      seed:            SEED,
+      climateFreq:     CONFIG.CLIMATE_FREQ,
+      waterLevelWorld: CONFIG.WATER_LEVEL,
+    },
+
+    trees: {
+      style:           'mixed',
+      climateFreq:     CONFIG.CLIMATE_FREQ,
+      tundraSuppress:  CONFIG.TREE_TUNDRA_SUPPRESS,
+      desertSuppress:  0.95,
+      forestFreq:      CONFIG.FOREST_FREQ,
+      forestThreshold: CONFIG.FOREST_THRESHOLD,
+      forestDensity:   CONFIG.FOREST_DENSITY, // 可能被 lodTreeOpts 覆盖
+                                               // may be overridden by lodTreeOpts
+      sparseDensity:   CONFIG.SPARSE_DENSITY,
+      minHeight:       waterLevelNorm + 0.01,
+      maxHeight:       CONFIG.TREE_MAX_HEIGHT / (2 * HS) + 0.5,
+      maxSlope:        CONFIG.TREE_MAX_SLOPE,
+      baseScale:       CONFIG.TREE_BASE_SCALE,
+      scaleVar:        CONFIG.TREE_SCALE_VAR,
+      broadleafProb:   CONFIG.TREE_BROADLEAF_PROB,
+      treesPerChunk:   CONFIG.TREES_PER_CHUNK,  // 可能被 lodTreeOpts 覆盖
+                                                 // may be overridden by lodTreeOpts
+      minDist:         CONFIG.TREE_MIN_DIST,
+      ...lodTreeOpts, // LOD 等级对应的树木密度覆盖 / density overrides for this LOD level
+    },
+
+    water: {
+      enabled: true,
+      level:   waterLevelNorm,
+      opacity: CONFIG.WATER_OPACITY,
+    },
+  });
+
+  // 浮入动画起始 Y（animate=false 时跳过，用于 LOD 切换时无缝替换）
+  // Float-in start Y (skipped for LOD replacements to avoid a pop)
+  const floatStart = (animate && CONFIG.CHUNK_FLOAT_ENABLED) ? -CONFIG.CHUNK_FLOAT_DIST : 0;
+  chunk.object.position.y = floatStart;
+  chunk.treeGroup.visible  = CONFIG.TREES_ENABLED;
+
+  scene.add(chunk.object);
+
+  return {
+    cx, cz,
+    lodLevel,           // 当前 LOD 等级，用于后续检测是否需要重建
+                        // Current LOD level, used to detect when a rebuild is needed
+    worldX:      chunk.worldX,
+    worldZ:      chunk.worldZ,
+    chunkGroup:  chunk.object,   // 别名保持兼容 / alias for compatibility
+    terrainMesh: chunk.terrainMesh,
+    waterMesh:   chunk.waterMesh,
+    treeGroup:   chunk.treeGroup,
+    dispose:     chunk.dispose,
+    floatY:      floatStart,     // 当前 Y 偏移（0 = 到位）/ current Y offset (0 = settled)
+  };
+}
+
+/**
+ * 释放区块的所有 GPU 资源。
+ * Dispose all GPU resources for a chunk.
+ */
+function disposeChunk(chunk) {
+  scene.remove(chunk.chunkGroup);
+  chunk.dispose();
+}
+
+// ============================================================
+// 区块管理 / Chunk manager
+// ============================================================
+const chunks             = {};        // 活跃区块 / active chunks
+const retiringChunks     = {};        // 正在退出（下沉）的区块 / chunks playing exit (sink) animation
+const lodPendingRebuild  = new Set(); // 因 LOD 变化被销毁、等待无动画重建的区块键
+                                      // Keys disposed for LOD change, awaiting no-animation rebuild
+let chunkCount = 0;
+const CHUNK_BUDGET_PER_FRAME = 4; // 每帧最多新建区块数 / max chunks built per frame
+
+/**
+ * 将区块移入退出队列，播放下沉动画后释放 GPU 资源。
+ * Move a chunk to the retiring queue; it will sink underground then be disposed.
+ *
+ * 若浮入动画已关闭，直接同步释放。
+ * If float animation is disabled, the chunk is disposed immediately (synchronously).
+ *
+ * @param {string} key   — 区块键 / chunk key
+ * @param {object} chunk — 要退出的区块对象 / chunk to retire
+ */
+function retireChunk(key, chunk) {
+  delete chunks[key];
+  chunkCount--;
+
+  if (!CONFIG.CHUNK_FLOAT_ENABLED) {
+    // 动画关闭时立即释放，不走退出队列
+    // No animation: dispose immediately without entering the retiring queue
+    disposeChunk(chunk);
+    return;
+  }
+
+  // 加入退出队列，后续由 updateChunkFloats 驱动下沉并最终销毁
+  // Enter retiring queue; updateChunkFloats will drive the sink and eventual disposal
+  retiringChunks[key] = chunk;
+}
+
+/**
+ * 根据摄像机位置更新可见区块集合（加载 / LOD 替换 / 退出）。
+ * Update the visible chunk set based on camera position (load / LOD replace / retire).
+ */
+function updateChunks(camX, camZ) {
+  const ccx = Math.floor(camX / CONFIG.CHUNK_SIZE);
+  const ccz = Math.floor(camZ / CONFIG.CHUNK_SIZE);
+  const r   = CONFIG.VIEW_DISTANCE;
+  const radii = { high: CONFIG.LOD_HIGH_RADIUS, medium: CONFIG.LOD_MEDIUM_RADIUS };
+
+  const needed  = {};
+  const toBuild = [];
+
+  for (let dz = -r; dz <= r; dz++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const cx  = ccx + dx, cz = ccz + dz;
+      const key = `${cx},${cz}`;
+      needed[key] = true;
+
+      const lodLevel = getChunkLodLevel(cx, cz, ccx, ccz, radii);
+
+      // ── 若该区块正在退出队列中，将其拉回活跃集合
+      // ── If this chunk is currently retiring, pull it back into the active set
+      if (retiringChunks[key]) {
+        const c = retiringChunks[key];
+        delete retiringChunks[key];
+        // 只有当 LOD 等级未变时才复用；否则丢弃并标记无动画重建
+        // Only reuse if LOD hasn't changed; otherwise discard and mark for no-animation rebuild
+        if (c.lodLevel === lodLevel) {
+          c.floatY = c.chunkGroup.position.y; // 从当前位置继续上浮 / continue rising from current Y
+          chunks[key] = c;
+          chunkCount++;
+          continue;
+        }
+        disposeChunk(c);
+        lodPendingRebuild.add(key); // 记录跨帧 LOD 替换标记 / mark across-frame LOD replace
+      }
+
+      const existing = chunks[key];
+      if (existing) {
+        if (existing.lodLevel === lodLevel) continue; // LOD 未变，跳过 / same LOD, skip
+
+        // LOD 等级已变：原地替换，不播放浮入动画（避免可见区块跳动）
+        // LOD changed: replace in-place without float-in to avoid a visible pop
+        disposeChunk(existing);
+        delete chunks[key];
+        chunkCount--;
+        lodPendingRebuild.add(key); // 跨帧保持无动画标记 / keep no-animation flag across frames
+        toBuild.push({ cx, cz, key, lodLevel, animate: false, d2: dx * dx + dz * dz });
+      } else {
+        // 普通新建：若 lodPendingRebuild 中有此 key，则跳过浮入动画
+        // New build: skip float-in if this key is a pending LOD replacement
+        const animate = !lodPendingRebuild.has(key);
+        toBuild.push({ cx, cz, key, lodLevel, animate, d2: dx * dx + dz * dz });
+      }
+    }
+  }
+
+  // 优先构建最近的区块（最小 d2 优先）
+  // Build closest chunks first (smallest squared distance first)
+  toBuild.sort((a, b) => a.d2 - b.d2);
+  const limit = Math.min(toBuild.length, CHUNK_BUDGET_PER_FRAME);
+  for (let i = 0; i < limit; i++) {
+    const t = toBuild[i];
+    chunks[t.key] = buildChunk(t.cx, t.cz, t.lodLevel, t.animate);
+    lodPendingRebuild.delete(t.key); // 已建完，清除标记 / built, clear the flag
+    chunkCount++;
+  }
+
+  // 退出超出视距的活跃区块（下沉动画）
+  // Retire active chunks that are now out of range (sink animation)
+  // 先收集需要退出的 key，避免 for...in 遍历期间修改同一对象
+  // Collect keys to retire first to avoid modifying the object during for...in
+  const toRetire = [];
+  for (const key in chunks) {
+    if (!needed[key]) toRetire.push(key);
+  }
+  for (const key of toRetire) retireChunk(key, chunks[key]);
+}
+
+/**
+ * 推进区块浮入（上升）与浮出（下沉）动画。
+ * Advance chunk float-in (rise) and float-out (sink) animations.
+ *
+ * 地形、树木、水面均为 chunkGroup 的子节点，移动 Group Y 即可整体联动。
+ * Terrain, trees and water are all children of chunkGroup — moving the
+ * Group Y drives everything together.
+ */
+function updateChunkFloats(dt) {
+  if (!CONFIG.CHUNK_FLOAT_ENABLED) return;
+  const speed = CONFIG.CHUNK_FLOAT_SPEED;
+
+  // 上升：活跃区块从地下浮到 y=0
+  // Rising: active chunks float up from underground to y=0
+  for (const key in chunks) {
+    const c = chunks[key];
+    if (c.floatY >= 0) continue;
+    c.floatY = Math.min(c.floatY + speed * dt, 0);
+    c.chunkGroup.position.y = c.floatY;
+  }
+
+  // 下沉：退出区块沉入地下后销毁
+  // Sinking: retiring chunks sink underground then are disposed
+  // 先收集需要销毁的 key，避免遍历期间修改同一对象
+  // Collect keys to dispose first to avoid modifying the object during for...in
+  const toDispose = [];
+  for (const key in retiringChunks) {
+    const c = retiringChunks[key];
+    c.floatY = Math.max(c.floatY - speed * dt, -CONFIG.CHUNK_FLOAT_DIST);
+    c.chunkGroup.position.y = c.floatY;
+    if (c.floatY <= -CONFIG.CHUNK_FLOAT_DIST) toDispose.push(key);
+  }
+  for (const key of toDispose) {
+    disposeChunk(retiringChunks[key]);
+    delete retiringChunks[key];
+  }
+}
+
+/**
+ * 销毁全部区块（含退出队列）并在当前摄像机位置重建。
+ * Dispose all chunks (including retiring ones) and rebuild from current camera position.
+ */
+function rebuildTerrain() {
+  for (const key in chunks)         { disposeChunk(chunks[key]);         delete chunks[key]; }
+  for (const key in retiringChunks) { disposeChunk(retiringChunks[key]); delete retiringChunks[key]; }
+  lodPendingRebuild.clear(); // 清除跨帧 LOD 标记 / clear pending LOD-replace flags
+  chunkCount = 0;
+  const eye = getCameraEye();
+  updateChunks(eye.x, eye.z);
+}
+
+// ============================================================
+// 轨道摄像机 / Orbit camera
+// ============================================================
+let yaw   = 0;
+let pitch = -0.45;
+let dist  = 380;
+
+const PITCH_MIN = -Math.PI / 2 + 0.05;
+const PITCH_MAX = -0.05;
+const DIST_MIN  = 60, DIST_MAX = 1200;
+
+const keys = {};
+window.addEventListener('keydown', function(e) {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === ' ') e.preventDefault();
+  if (e.key.toLowerCase() === 't' && !e.repeat) toggleTrees();
+});
+window.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
+
+let dragging = false;
+canvas.addEventListener('mousedown', () => { dragging = true;  canvas.style.cursor = 'grabbing'; });
+window.addEventListener('mouseup',   () => { dragging = false; canvas.style.cursor = 'grab'; });
+canvas.style.cursor = 'grab';
+
+window.addEventListener('mousemove', function(e) {
+  if (!dragging) return;
+  const s = 0.0035;
+  yaw   -= e.movementX * s;
+  pitch -= e.movementY * s;
+  pitch  = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch));
+});
+
+canvas.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  dist *= 1 + e.deltaY * 0.001;
+  dist  = Math.max(DIST_MIN, Math.min(DIST_MAX, dist));
+}, { passive: false });
+
+function updateCamera(dt) {
+  const speed = 0.55 * dist;
+  const fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
+  const rgtX =  Math.cos(yaw), rgtZ = -Math.sin(yaw);
+  if (keys['w']) { target.x += fwdX * speed * dt; target.z += fwdZ * speed * dt; }
+  if (keys['s']) { target.x -= fwdX * speed * dt; target.z -= fwdZ * speed * dt; }
+  if (keys['d']) { target.x += rgtX * speed * dt; target.z += rgtZ * speed * dt; }
+  if (keys['a']) { target.x -= rgtX * speed * dt; target.z -= rgtZ * speed * dt; }
+  if (keys[' '])     target.y += 40 * dt;
+  if (keys['shift']) target.y -= 40 * dt;
+  if (keys['q']) dist = Math.min(dist + 80 * dt, DIST_MAX);
+  if (keys['e']) dist = Math.max(dist - 80 * dt, DIST_MIN);
+  if (keys['r']) { target.x = 0; target.y = 0; target.z = 0; yaw = 0; pitch = -0.45; dist = 380; }
+}
+
+function getCameraEye() {
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  return {
+    x: target.x + Math.sin(yaw) * cp * dist,
+    y: target.y - sp * dist,
+    z: target.z + Math.cos(yaw) * cp * dist,
+  };
+}
+
+// ============================================================
+// 防抖重建 / Debounced rebuild helper
+// ============================================================
+let _rebuildTimer = null;
+function debouncedRebuild(ms) {
+  if (_rebuildTimer) clearTimeout(_rebuildTimer);
+  _rebuildTimer = setTimeout(rebuildTerrain, ms || 500);
+}
+
+// ============================================================
+// UI 事件处理 / UI event handlers
+// ============================================================
+
+// ── 树木开关 / Trees toggle ───────────────────────────────────
+const btnTrees = document.getElementById('btn-trees');
+function toggleTrees() {
+  CONFIG.TREES_ENABLED = !CONFIG.TREES_ENABLED;
+  btnTrees.textContent = 'trees: ' + (CONFIG.TREES_ENABLED ? 'ON' : 'OFF');
+  btnTrees.classList.toggle('off', !CONFIG.TREES_ENABLED);
+  for (const key in chunks) chunks[key].treeGroup.visible = CONFIG.TREES_ENABLED;
+}
+btnTrees.addEventListener('click', toggleTrees);
+
+// ── 阴影开关 / Shadows toggle ────────────────────────────────
+const btnShadows = document.getElementById('btn-shadows');
+let SHADOWS_ENABLED = true;
+function toggleShadows() {
+  SHADOWS_ENABLED = !SHADOWS_ENABLED;
+  sunLight.castShadow = SHADOWS_ENABLED;
+  btnShadows.textContent = 'shadows: ' + (SHADOWS_ENABLED ? 'ON' : 'OFF');
+  btnShadows.classList.toggle('off', !SHADOWS_ENABLED);
+}
+btnShadows.addEventListener('click', toggleShadows);
+
+// ── 浮入动画开关（index.html 新功能）/ Float animation toggle ─
+const btnFloat = document.getElementById('btn-float');
+function toggleFloat() {
+  CONFIG.CHUNK_FLOAT_ENABLED = !CONFIG.CHUNK_FLOAT_ENABLED;
+  btnFloat.textContent = 'float: ' + (CONFIG.CHUNK_FLOAT_ENABLED ? 'ON' : 'OFF');
+  btnFloat.classList.toggle('off', !CONFIG.CHUNK_FLOAT_ENABLED);
+  // 若关闭：活跃区块立即归位，退出队列立即销毁
+  // If disabled: snap active chunks to ground, dispose retiring chunks immediately
+  if (!CONFIG.CHUNK_FLOAT_ENABLED) {
+    for (const key in chunks) {
+      const c = chunks[key];
+      c.floatY = 0;
+      c.chunkGroup.position.y = 0;
+    }
+    for (const key in retiringChunks) {
+      disposeChunk(retiringChunks[key]);
+      delete retiringChunks[key];
+    }
+  }
+}
+btnFloat.addEventListener('click', toggleFloat);
+
+// ── 太阳高度 / Sun elevation ──────────────────────────────────
+const sliderElev = document.getElementById('sun-elev');
+const labelElev  = document.getElementById('sun-elev-val');
+sliderElev.addEventListener('input', function() {
+  SUN.elevation = parseFloat(sliderElev.value) * Math.PI / 180;
+  labelElev.textContent = sliderElev.value + '°';
+  updateSunDir();
+});
+
+// ── 太阳方位 / Sun azimuth ────────────────────────────────────
+const sliderAzim = document.getElementById('sun-azim');
+const labelAzim  = document.getElementById('sun-azim-val');
+sliderAzim.addEventListener('input', function() {
+  SUN.azimuth = parseFloat(sliderAzim.value) * Math.PI / 180;
+  labelAzim.textContent = sliderAzim.value + '°';
+  updateSunDir();
+});
+
+// ── 种子（手动输入）/ Seed (manual input) ─────────────────────
+const seedInput = document.getElementById('seed-input');
+seedInput.addEventListener('change', function() {
+  const v = parseInt(seedInput.value, 10);
+  if (isNaN(v)) return;
+  SEED = Math.max(0, Math.min(9999, v));
+  seedInput.value = SEED;
+  rebuildTerrain();
+});
+seedInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') seedInput.dispatchEvent(new Event('change'));
+});
+
+// ── 噪声频率 / Noise scale ────────────────────────────────────
+const sliderNoiseScale = document.getElementById('noise-scale');
+const labelNoiseScale  = document.getElementById('noise-scale-val');
+sliderNoiseScale.addEventListener('input', function() {
+  CONFIG.NOISE_FREQ = parseInt(sliderNoiseScale.value) / 1000;
+  labelNoiseScale.textContent = CONFIG.NOISE_FREQ.toFixed(3);
+  debouncedRebuild();
+});
+
+// ── 倍频层数 / Octaves ────────────────────────────────────────
+const sliderOctaves = document.getElementById('octaves');
+const labelOctaves  = document.getElementById('octaves-val');
+sliderOctaves.addEventListener('input', function() {
+  CONFIG.OCTAVES = parseInt(sliderOctaves.value);
+  labelOctaves.textContent = CONFIG.OCTAVES;
+  debouncedRebuild();
+});
+
+// ── 高度缩放 / Height scale ───────────────────────────────────
+const sliderHeightScale = document.getElementById('height-scale');
+const labelHeightScale  = document.getElementById('height-scale-val');
+sliderHeightScale.addEventListener('input', function() {
+  CONFIG.HEIGHT_SCALE = parseInt(sliderHeightScale.value) / 100;
+  labelHeightScale.textContent = CONFIG.HEIGHT_SCALE.toFixed(1) + '×';
+  debouncedRebuild();
+});
+
+// ── 树木最大坡度 / Tree max slope ─────────────────────────────
+const sliderTreeSlope = document.getElementById('tree-slope');
+const labelTreeSlope  = document.getElementById('tree-slope-val');
+sliderTreeSlope.addEventListener('input', function() {
+  CONFIG.TREE_MAX_SLOPE = parseInt(sliderTreeSlope.value) / 100;
+  labelTreeSlope.textContent = CONFIG.TREE_MAX_SLOPE.toFixed(2);
+  debouncedRebuild();
+});
+
+// ── 树木密度 / Tree density ───────────────────────────────────
+const sliderTreeDensity = document.getElementById('tree-density');
+const labelTreeDensity  = document.getElementById('tree-density-val');
+sliderTreeDensity.addEventListener('input', function() {
+  CONFIG.FOREST_DENSITY = parseInt(sliderTreeDensity.value) / 100;
+  labelTreeDensity.textContent = CONFIG.FOREST_DENSITY.toFixed(2);
+  debouncedRebuild();
+});
+
+// ── 水位 / Water level ────────────────────────────────────────
+const sliderWaterLevel = document.getElementById('water-level');
+const labelWaterLevel  = document.getElementById('water-level-val');
+sliderWaterLevel.addEventListener('input', function() {
+  CONFIG.WATER_LEVEL = parseInt(sliderWaterLevel.value) * 0.75;
+  labelWaterLevel.textContent = CONFIG.WATER_LEVEL.toFixed(1);
+  debouncedRebuild();
+});
+
+// ── 水面透明度（实时更新，无需重建）/ Water opacity (live update, no rebuild) ──
+const sliderWaterOpacity = document.getElementById('water-opacity');
+const labelWaterOpacity  = document.getElementById('water-opacity-val');
+sliderWaterOpacity.addEventListener('input', function() {
+  const op = parseInt(sliderWaterOpacity.value) / 100;
+  labelWaterOpacity.textContent = op.toFixed(2);
+  CONFIG.WATER_OPACITY = op;
+  // 调用 water.js 的 setOpacity 接口（活跃区块 + 退出队列），无需 rebuild
+  // Call water.js setOpacity on active + retiring chunks — no rebuild needed
+  for (const key in chunks)
+    if (chunks[key].waterMesh) chunks[key].waterMesh.userData.setOpacity(op);
+  for (const key in retiringChunks)
+    if (retiringChunks[key].waterMesh) retiringChunks[key].waterMesh.userData.setOpacity(op);
+});
+
+// ── 水面反射距离（实时更新，无需重建）/ Water reflection distance (live, no rebuild) ──
+const sliderReflDist = document.getElementById('water-reflect-dist');
+const labelReflDist  = document.getElementById('water-reflect-dist-val');
+sliderReflDist.addEventListener('input', function() {
+  CONFIG.WATER_REFLECT_DIST = parseInt(sliderReflDist.value);
+  _waterReflectDist2 = CONFIG.WATER_REFLECT_DIST * CONFIG.WATER_REFLECT_DIST;
+  labelReflDist.textContent = CONFIG.WATER_REFLECT_DIST;
+});
+
+// ============================================================
+// 初始化 / Initialisation
+// ============================================================
+// 使用实际摄像机位置初始化，避免第 1 帧因位置偏差触发全局重建
+// Use real camera eye position so the first frame doesn't trigger a full rebuild
+{ const eye = getCameraEye(); updateChunks(eye.x, eye.z); }
+
+// ── HUD 显示元素 / HUD display elements ──────────────────────
+const statChunks = document.getElementById('stat-chunks');
+const statPos    = document.getElementById('stat-pos');
+const statFps    = document.getElementById('stat-fps');
+
+let lastTime = performance.now();
+let fpsAccum = 0, fpsCount = 0, fpsTimer = 0;
+
+// ============================================================
+// 主循环 / Main render loop
+// ============================================================
+function frame() {
+  try {
+    const now = performance.now();
+    const dt  = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime  = now;
+
+    updateCamera(dt);
+    const eye = getCameraEye();
+    updateChunks(eye.x, eye.z);
+    updateChunkFloats(dt);   // 区块浮入动画 / chunk float-in animation
+    updateSunLight();
+
+    camera.position.set(eye.x, eye.y, eye.z);
+    camera.lookAt(target.x, target.y, target.z);
+    skySphere.position.copy(camera.position);
+
+    // 按摄像机距离切换水面反射（活跃区块 + 退出队列均处理）
+    // Toggle water reflection by camera distance (active + retiring chunks)
+    for (const key in chunks) {
+      const c  = chunks[key];
+      if (!c.waterMesh) continue;
+      const dx = c.worldX - eye.x, dz = c.worldZ - eye.z;
+      c.waterMesh.userData.setReflectionEnabled(dx * dx + dz * dz < _waterReflectDist2);
+    }
+    for (const key in retiringChunks) {
+      // 退出中的区块一律关闭反射，节省 GPU
+      // Retiring chunks always have reflection off to save GPU
+      if (retiringChunks[key].waterMesh)
+        retiringChunks[key].waterMesh.userData.setReflectionEnabled(false);
+    }
+
+    // HUD 统计 / HUD stats
+    fpsAccum += 1 / Math.max(dt, 0.001); fpsCount++; fpsTimer += dt;
+    if (fpsTimer > 0.3) {
+      statFps.textContent    = (fpsAccum / fpsCount).toFixed(0);
+      statChunks.textContent = chunkCount;
+      statPos.textContent    = target.x.toFixed(0) + ', ' + target.z.toFixed(0);
+      fpsAccum = 0; fpsCount = 0; fpsTimer = 0;
+    }
+
+    renderer.render(scene, camera);
+  } catch(e) {
+    const el = document.getElementById('error');
+    el.style.display = 'block';
+    el.textContent = 'Frame error: ' + e + '\n\n' + (e.stack || '');
+    return;
+  }
+  requestAnimationFrame(frame);
+}
+
+try {
+  frame();
+} catch(e) {
+  const el = document.getElementById('error');
+  el.style.display = 'block';
+  el.textContent = 'Init error: ' + e + '\n\n' + (e.stack || '');
+}
+</script>
+</body>
+</html>

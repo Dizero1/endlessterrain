@@ -5,7 +5,7 @@ import { GUI } from "../build/gui/lil-gui.module.min.js";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0d1725);
-scene.fog = new THREE.FogExp2(0x0d1725, 0.005);
+scene.fog = new THREE.FogExp2(0x0d1725, 0.0022);
 
 function createSkySphere() {
   const geometry = new THREE.SphereGeometry(600, 32, 16);
@@ -54,7 +54,7 @@ const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
-  1200,
+  2400,
 );
 camera.position.set(20, -10, 40);
 camera.lookAt(0, 0, 0);
@@ -160,24 +160,24 @@ let CONFIG = {
   seed: 42,
   width: 32,
   depth: 32,
-  renderRadius: 5,
-  highLodRadius: 3,
-  mediumLodRadius: 4,
+  renderRadius: 10,
+  highLodRadius: 4,
+  mediumLodRadius: 7,
   chunkTransitionEnabled: true,
   chunkTransitionSpeed: 42,
   chunkFloatDistance: 18,
   heightScale: 40,
-  noiseScale: 0.02,
-  octaves: 5,
-  treeMinHeight: 0.42,
-  treeMaxHeight: 0.62,
+  noiseScale: 0.008,   // biome-system base frequency (matches terrain.html)
+  octaves: 6,
+  treeMinHeight: 0.50, // just above water level
+  treeMaxHeight: 0.59, // just below snow line
   treeMaxSlope: 0.7,
   treeScale: 0.35,
   treeSampleStep: 2,
   treeDensity: 0.8,
   treeLod: "high",
   waterEnabled: true,
-  waterLevel: 0.38,
+  waterLevel: 0.496,   // matches biome WATER_LEVEL = -1.5*(heightScale/200)
   waterOpacity: 0.55,
   waterReflectionDistance: 42,
 };
@@ -191,7 +191,7 @@ gui
   });
 
 gui
-  .add(CONFIG, "noiseScale", 0.01, 0.2, 0.001)
+  .add(CONFIG, "noiseScale", 0.004, 0.04, 0.001)
   .name("Noise Scale")
   .onChange(regenerateTerrain);
 gui
@@ -311,6 +311,8 @@ function getChunkLodSettings(lodLevel) {
 
 function createChunkAt(chunkX, chunkZ, lodLevel, animate = CONFIG.chunkTransitionEnabled) {
   const lodSettings = getChunkLodSettings(lodLevel);
+  // High-quality geometry for close chunks, coarser for distant ones
+  const segments = lodLevel === 'high' ? 64 : lodLevel === 'medium' ? 32 : 16;
   const chunk = createTerrainChunk({
     chunkX,
     chunkZ,
@@ -322,8 +324,8 @@ function createChunkAt(chunkX, chunkZ, lodLevel, animate = CONFIG.chunkTransitio
       noiseScale: CONFIG.noiseScale,
       octaves: CONFIG.octaves,
       seed: CONFIG.seed,
-      segmentsX: 64,
-      segmentsY: 64,
+      segmentsX: segments,
+      segmentsY: segments,
     },
     trees: {
       sampleStep: lodSettings.treeSampleStep,
