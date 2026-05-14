@@ -163,7 +163,6 @@ export function createTerrainMesh(options = {}) {
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     flatShading: false,
-    side: THREE.DoubleSide,
     roughness: 0.85,
     metalness: 0.05,
   });

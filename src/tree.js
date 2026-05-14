@@ -92,7 +92,7 @@ function computeSlopeAtIndex(
   return Math.sqrt(hx * hx + hz * hz);
 }
 
-function getTerrainHeight(
+export function getTerrainHeight(
   x,
   z,
   heightMap,

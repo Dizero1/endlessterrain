@@ -11,7 +11,6 @@ function createWaterOverlayMaterial(opacity, color) {
   return new THREE.MeshStandardMaterial({
     color,
     transparent: true,
-    side: THREE.DoubleSide,
     depthWrite: false,
     opacity,
     roughness: 0.18,
@@ -67,7 +66,8 @@ export function createWaterMesh({
   water.userData.overlayNearOpacity = Math.max(0.18, opacity * 0.45);
   water.userData.overlayFarOpacity = opacity;
   water.userData.setReflectionEnabled = (enabled) => {
-    if (water.userData.Lod === "low") {
+    if (water.userData.Lod === "low" || water.userData.Lod === "medium") {
+      reflector.visible = false;
       return;
     }
     const size = Lod === "high" ? 512 : 128;

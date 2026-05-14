@@ -1,6 +1,7 @@
 import * as THREE from "../build/three.module.js";
 import { PointerLockControls } from "../build/controls/PointerLockControls.js";
 import { createTerrainChunk } from "./chunk.js";
+import { getTerrainHeight } from "./tree.js"
 import { GUI } from "../build/gui/lil-gui.module.min.js";
 import { Reflector } from "../build/objects/Reflector.js";
 
@@ -118,15 +119,19 @@ function onKeyUp(event) {
   setMovementKey(event.code, false);
 }
 
-function getHeight(
-  x,
-  z,
-  positionAttribute,
-  width,
-  depth,
-  segmentsX,
-  segmentsY,
-) {}
+function getcenterchunk(
+) {
+    const centerChunkX = getCameraChunkCoordinate1(
+      camera.position.x,
+      CONFIG.width,
+    );
+    const centerChunkZ = getCameraChunkCoordinate1(
+      camera.position.z,
+      CONFIG.depth,
+    );
+    const chunkId = `${centerChunkX},${centerChunkZ}`;
+    return activeChunks.get(chunkId);
+}
 function updateCameraMovement(deltaTime) {
   const distance = cameraController.moveSpeed * deltaTime;
 
@@ -136,6 +141,8 @@ function updateCameraMovement(deltaTime) {
   if (movementState.right) controls.moveRight(distance);
   if (movementState.up) camera.position.y += distance;
   if (movementState.down) camera.position.y -= distance;
+  // const height = getTerrainHeight(camera.position.x,camera.position.z,getcenterchunk().heightMap,CONFIG);
+  // if (camera.postion.y<= height){camera.position.y=height;}
 }
 
 function applyChunkFloatSetting(enabled) {
@@ -171,6 +178,8 @@ let CONFIG = {
   seed: 42,
   width: 32,
   depth: 32,
+  segmentsX: 64,
+  segmentsY: 64,
   renderRadius: 4,
   highLodRadius: 1,
   mediumLodRadius: 3,
@@ -272,7 +281,7 @@ const retiringChunks = new Map();
 let lastCameraChunkX = Number.NaN;
 let lastCameraChunkZ = Number.NaN;
 
-function getCameraChunkCoordinate(position, chunkSize) {
+function getCameraChunkCoordinate1(position, chunkSize) {
   return Math.floor((position + chunkSize * 0.5) / chunkSize);
 }
 
@@ -305,7 +314,7 @@ function getChunkLodSettings(lodLevel) {
   if (lodLevel === "medium") {
     return {
       treeSampleStep: CONFIG.treeSampleStep,
-      treeDensity: CONFIG.treeDensity,
+      treeDensity: CONFIG.treeDensity * 0.8,
       treeLod: CONFIG.treeLod === "high" ? "medium" : CONFIG.treeLod,
       reflectorLod: "medium",
     };
@@ -313,7 +322,7 @@ function getChunkLodSettings(lodLevel) {
 
   return {
     treeSampleStep: Math.max(CONFIG.treeSampleStep * 2, 4),
-    treeDensity: CONFIG.treeDensity * 0.5,
+    treeDensity: CONFIG.treeDensity * 0.8,
     treeLod: "low",
     reflectorLod: "low",
   };
@@ -337,8 +346,8 @@ function createChunkAt(
       noiseScale: CONFIG.noiseScale,
       octaves: CONFIG.octaves,
       seed: CONFIG.seed,
-      segmentsX: 64,
-      segmentsY: 64,
+      segmentsX: CONFIG.segmentsX,
+      segmentsY: CONFIG.segmentsY,
     },
     trees: {
       sampleStep: lodSettings.treeSampleStep,
@@ -408,11 +417,11 @@ function updateChunkTransitions(deltaTime) {
 }
 
 function updateChunkRendering(force = false) {
-  const centerChunkX = getCameraChunkCoordinate(
+  const centerChunkX = getCameraChunkCoordinate1(
     camera.position.x,
     CONFIG.width,
   );
-  const centerChunkZ = getCameraChunkCoordinate(
+  const centerChunkZ = getCameraChunkCoordinate1(
     camera.position.z,
     CONFIG.depth,
   );
