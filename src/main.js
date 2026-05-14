@@ -1,7 +1,7 @@
 import * as THREE from "../build/three.module.js";
 import { PointerLockControls } from "../build/controls/PointerLockControls.js";
 import { createTerrainChunk } from "./chunk.js";
-import { getTerrainHeight } from "./tree.js"
+import { getTerrainHeight } from "./tree.js";
 import { GUI } from "../build/gui/lil-gui.module.min.js";
 import { Reflector } from "../build/objects/Reflector.js";
 
@@ -119,30 +119,42 @@ function onKeyUp(event) {
   setMovementKey(event.code, false);
 }
 
-function getcenterchunk(
-) {
-    const centerChunkX = getCameraChunkCoordinate1(
-      camera.position.x,
-      CONFIG.width,
-    );
-    const centerChunkZ = getCameraChunkCoordinate1(
-      camera.position.z,
-      CONFIG.depth,
-    );
-    const chunkId = `${centerChunkX},${centerChunkZ}`;
-    return activeChunks.get(chunkId);
+function getcenterchunk() {
+  const centerChunkX = getCameraChunkCoordinate1(
+    camera.position.x,
+    CONFIG.width,
+  );
+  const centerChunkZ = getCameraChunkCoordinate1(
+    camera.position.z,
+    CONFIG.depth,
+  );
+  const chunkId = `${centerChunkX},${centerChunkZ}`;
+  return activeChunks.get(chunkId);
 }
 function updateCameraMovement(deltaTime) {
   const distance = cameraController.moveSpeed * deltaTime;
-
   if (movementState.forward) controls.moveForward(distance);
   if (movementState.backward) controls.moveForward(-distance);
   if (movementState.left) controls.moveRight(-distance);
   if (movementState.right) controls.moveRight(distance);
   if (movementState.up) camera.position.y += distance;
   if (movementState.down) camera.position.y -= distance;
-  // const height = getTerrainHeight(camera.position.x,camera.position.z,getcenterchunk().heightMap,CONFIG);
-  // if (camera.postion.y<= height){camera.position.y=height;}
+  const terrain = getcenterchunk().terrainMesh;
+  const x = camera.position.x - terrain.position.x;
+  const z = camera.position.z - terrain.position.z;
+  const target = camera.position.clone();
+  const height = getTerrainHeight(
+    target.x,
+    target.z,
+    terrain.heightMap,
+    CONFIG,
+  );
+
+  const worldHeight = height + terrain.position.y;
+
+  if (camera.position.y < worldHeight + 0.1) {
+    camera.position.y = worldHeight + 0.1;
+  }
 }
 
 function applyChunkFloatSetting(enabled) {
@@ -174,6 +186,7 @@ window.addEventListener("keydown", onKeyDown);
 window.addEventListener("keyup", onKeyUp);
 
 const gui = new GUI();
+gui.close()
 let CONFIG = {
   seed: 42,
   width: 32,
@@ -199,7 +212,7 @@ let CONFIG = {
   waterEnabled: true,
   waterLevel: 0.38,
   waterOpacity: 0.55,
-  waterReflectionDistance: 18,
+  waterReflectionDistance: 8,
 };
 
 gui
