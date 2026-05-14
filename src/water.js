@@ -31,7 +31,7 @@ export function createWaterMesh({
   const waterY = normalizedHeightToHeight(level, heightScale) + 0.03;
   const reflectionGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
   const overlayGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
-  const size = Lod === "high" ? 512 : 128;
+  const size = Lod === "high" ? 512 : 256;
   const reflector = new Reflector(reflectionGeometry, {
     color: 0x8eb7c5,
     textureWidth: size,
@@ -55,7 +55,7 @@ export function createWaterMesh({
 
   overlay.name = "water-overlay";
   overlay.rotation.x = -Math.PI * 0.5;
-  overlay.position.y = 0.02;
+  overlay.position.y = 0.01;
   overlay.receiveShadow = false;
 
   water.add(reflector, overlay);
@@ -70,18 +70,14 @@ export function createWaterMesh({
       reflector.visible = false;
       return;
     }
-    const size = Lod === "high" ? 512 : 128;
+    const size = Lod === "high" ? 512 : 256;
     water.userData.reflector.getRenderTarget().setSize(size, size);
     reflector.visible = enabled;
     overlay.material.opacity = enabled
       ? water.userData.overlayNearOpacity
       : water.userData.overlayFarOpacity;
   };
-  if (Lod === "low") {
     water.userData.setReflectionEnabled(false);
-  } else {
-    water.userData.setReflectionEnabled(true);
-  }
 
   return water;
 }

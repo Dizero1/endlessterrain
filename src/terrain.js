@@ -1,35 +1,54 @@
 import * as THREE from "../build/three.module.js";
 import { makeFractalNoise } from "./noise.js";
 
-function getTerrainColor(normalizedHeight, slopeFactor, targetColor) {
-  const C1 = new THREE.Color(0xffffff); // 雪白
-  const C2Green = new THREE.Color(0x3b6f2f); // 深绿色
-  const C2Brown = new THREE.Color(0x7d5a34); // 褐色
-  const C3 = new THREE.Color(0x8d8f95); // 石头灰
+function getTerrainColor(height, slopeFactor, targetColor) {
+  const C1 = new THREE.Color(0xffffff); // Snow
+  const C2 = new THREE.Color(0x3b6f2f); // Grass
+  const C3 = new THREE.Color(0x7d5a34); // Dirt
+  const C4 = new THREE.Color(0x8d8f95); // Rock
 
-  const h1 = 0.76;
-  const h2 = 0.64;
-  const h3 = 0.38;
-  const h4 = 0.22;
-  const slopeGreenFactor = THREE.MathUtils.smoothstep(slopeFactor, 0.5, 1);
+  const h1 = 0.18;
+  const h2 = 0.32;
+  const h3 = 0.4;
+  const h4 = 0.6;
+  const h5 = 0.72;
+  const h6 = 0.68;
+  const h7 = 0.82;
 
-  const hillColor = C2Green.clone().lerp(C2Brown, slopeGreenFactor * 0.5);
+  // height = Math.pow(height, 1.35);
 
-  if (normalizedHeight >= h1) {
-    targetColor.copy(C1);
-  } else if (normalizedHeight >= h2) {
-    const t = (normalizedHeight - h2) / (h1 - h2);
-    targetColor.copy(hillColor).lerp(C1, t);
-  } else if (normalizedHeight >= h3) {
-    targetColor.copy(hillColor);
-  } else if (normalizedHeight >= h4) {
-    const t = (normalizedHeight - h4) / (h3 - h4);
-    targetColor.copy(C3).lerp(hillColor, t);
-  } else {
-    targetColor.copy(C3);
-  }
+  const steepness = THREE.MathUtils.smoothstep(slopeFactor, 0.35, 0.85);
 
-  const shade = 0.7 + 0.3 * slopeGreenFactor;
+  const terrainColor = C2.clone().lerp(C3, steepness * 0.65);
+
+  const rockWeight =
+    1.0 -
+    THREE.MathUtils.smoothstep(height, h1, h2) *
+    (1.0-THREE.MathUtils.smoothstep(height, h6, h5) * 0.5);
+
+  const grassWeight =
+    THREE.MathUtils.smoothstep(height, 0.22, h3) *
+    (1.0 - THREE.MathUtils.smoothstep(height, h4, h5));
+
+  const snowWeight =
+    THREE.MathUtils.smoothstep(height, h6, h7) * (1.0 - steepness * 0.75);
+
+  const total = Math.max(rockWeight + grassWeight + snowWeight, 0.0001);
+
+  const rw = rockWeight / total;
+  const gw = grassWeight / total;
+  const sw = snowWeight / total;
+
+  targetColor.setRGB(0, 0, 0);
+
+  targetColor.add(C4.clone().multiplyScalar(rw));
+
+  targetColor.add(terrainColor.clone().multiplyScalar(gw));
+
+  targetColor.add(C1.clone().multiplyScalar(sw));
+
+  const shade = 0.78 + (1.0 - steepness) * 0.18;
+
   targetColor.multiplyScalar(shade);
 }
 
@@ -162,6 +181,7 @@ export function createTerrainMesh(options = {}) {
   const geometry = createTerrainGeometry(heightMap, options);
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
+    side: THREE.DoubleSide,
     flatShading: false,
     roughness: 0.85,
     metalness: 0.05,

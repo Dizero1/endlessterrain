@@ -139,22 +139,22 @@ function updateCameraMovement(deltaTime) {
   if (movementState.right) controls.moveRight(distance);
   if (movementState.up) camera.position.y += distance;
   if (movementState.down) camera.position.y -= distance;
-  const terrain = getcenterchunk().terrainMesh;
-  const x = camera.position.x - terrain.position.x;
-  const z = camera.position.z - terrain.position.z;
-  const target = camera.position.clone();
-  const height = getTerrainHeight(
-    target.x,
-    target.z,
-    terrain.heightMap,
-    CONFIG,
-  );
+  // const terrain = getcenterchunk().terrainMesh;
+  // const x = camera.position.x - terrain.position.x;
+  // const z = camera.position.z - terrain.position.z;
+  // const target = camera.position.clone();
+  // const height = getTerrainHeight(
+  //   target.x,
+  //   target.z,
+  //   terrain.heightMap,
+  //   CONFIG,
+  // );
 
-  const worldHeight = height + terrain.position.y;
+  // const worldHeight = height + terrain.position.y;
 
-  if (camera.position.y < worldHeight + 0.1) {
-    camera.position.y = worldHeight + 0.1;
-  }
+  // if (camera.position.y < worldHeight + 0.1) {
+  //   camera.position.y = worldHeight + 0.1;
+  // }
 }
 
 function applyChunkFloatSetting(enabled) {
@@ -268,7 +268,7 @@ waterFolder
   .name("Opacity")
   .onChange(regenerateTerrain);
 waterFolder
-  .add(CONFIG, "waterReflectionDistance", 8, 42, 1)
+  .add(CONFIG, "waterReflectionDistance", 0, 42, 1)
   .name("Reflect Dist")
   .onChange(() => {});
 
