@@ -38,12 +38,14 @@ function createFoliageGeometry(segments = 10, random = Math.random) {
 function createTreeAssets(lod, random) {
   const trunkSegments = lod === "high" ? 6 : 5;
   const foliageSegments = lod === "high" ? 10 : 6;
-  const trunkGeometry = lod === "low"
-    ? null
-    : new THREE.CylinderGeometry(0.1, 0.16, 1.6, trunkSegments);
-  const foliageGeometry = lod === "low"
-    ? new THREE.ConeGeometry(0.95, 2.2, 6, 1)
-    : createFoliageGeometry(foliageSegments, random);
+  const trunkGeometry =
+    lod === "low"
+      ? null
+      : new THREE.CylinderGeometry(0.1, 0.16, 1.6, trunkSegments);
+  const foliageGeometry =
+    lod === "low"
+      ? new THREE.ConeGeometry(0.95, 2.2, 6, 1)
+      : createFoliageGeometry(foliageSegments, random);
 
   return {
     trunkGeometry,
@@ -90,32 +92,37 @@ function computeSlopeAtIndex(
   return Math.sqrt(hx * hx + hz * hz);
 }
 
-function sampleTerrainHeightAt(x, z, positionAttribute, params) {
-  const halfWidth = params.width * 0.5;
-  const halfDepth = params.depth * 0.5;
+function getTerrainHeight(
+  x,
+  z,
+  heightMap,
+  { width = 128, depth = 128, segmentsX = 256, segmentsY = 256 } = {},
+) {
+  const halfWidth = width * 0.5;
+  const halfDepth = depth * 0.5;
   const gridX = THREE.MathUtils.clamp(
-    ((x + halfWidth) / params.width) * params.segmentsX,
+    ((x + halfWidth) / width) * segmentsX,
     0,
-    params.segmentsX,
+    segmentsX,
   );
   const gridZ = THREE.MathUtils.clamp(
-    ((z + halfDepth) / params.depth) * params.segmentsY,
+    ((z + halfDepth) / depth) * segmentsY,
     0,
-    params.segmentsY,
+    segmentsY,
   );
 
   const col0 = Math.floor(gridX);
   const row0 = Math.floor(gridZ);
-  const col1 = Math.min(col0 + 1, params.segmentsX);
-  const row1 = Math.min(row0 + 1, params.segmentsY);
+  const col1 = Math.min(col0 + 1, segmentsX);
+  const row1 = Math.min(row0 + 1, segmentsY);
   const tx = gridX - col0;
   const tz = gridZ - row0;
-  const stride = params.segmentsX + 1;
+  const stride = segmentsX + 1;
 
-  const h00 = positionAttribute.getY(row0 * stride + col0);
-  const h10 = positionAttribute.getY(row0 * stride + col1);
-  const h01 = positionAttribute.getY(row1 * stride + col0);
-  const h11 = positionAttribute.getY(row1 * stride + col1);
+  const h00 = heightMap[row0 * stride + col0];
+  const h10 = heightMap[row0 * stride + col1];
+  const h01 = heightMap[row1 * stride + col0];
+  const h11 = heightMap[row1 * stride + col1];
   const h0 = THREE.MathUtils.lerp(h00, h10, tx);
   const h1 = THREE.MathUtils.lerp(h01, h11, tx);
 
@@ -141,7 +148,7 @@ export function generateTrees(terrainMesh, options = {}) {
     maxHeight: 0.72,
     maxSlope: 0.28,
     scaleMin: 0.75,
-    scaleMax: 0.80,
+    scaleMax: 0.8,
     density: 0.8,
     lod: "high",
     seed: 0,
@@ -180,7 +187,12 @@ export function generateTrees(terrainMesh, options = {}) {
         params.scaleMin + random() * (params.scaleMax - params.scaleMin);
       const treeX = positionAttribute.getX(index) + 0.4 - random() * 0.8;
       const treeZ = positionAttribute.getZ(index) + 0.4 - random() * 0.8;
-      const treeY = sampleTerrainHeightAt(treeX, treeZ, positionAttribute, params);
+      const treeY = getTerrainHeight(
+        treeX,
+        treeZ,
+        terrainMesh.heightMap,
+        params,
+      );
       placements.push({
         position: new THREE.Vector3(treeX, treeY, treeZ),
         rotationY: random() * Math.PI * 2,

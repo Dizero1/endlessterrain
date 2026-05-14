@@ -33,20 +33,23 @@ function getTerrainColor(normalizedHeight, slopeFactor, targetColor) {
   targetColor.multiplyScalar(shade);
 }
 
-export function createTerrainGeometry({
-  width = 128,
-  depth = 128,
-  segmentsX = 256,
-  segmentsY = 256,
-  heightScale = 45,
-  noiseScale = 0.065,
-  octaves = 5,
-  persistence = 0.55,
-  lacunarity = 2,
-  seed = 0,
-  worldOffsetX = 0,
-  worldOffsetZ = 0,
-} = {}) {
+export function createTerrainGeometry(
+  heightMap,
+  {
+    width = 128,
+    depth = 128,
+    segmentsX = 256,
+    segmentsY = 256,
+    heightScale = 45,
+    noiseScale = 0.065,
+    octaves = 5,
+    persistence = 0.55,
+    lacunarity = 2,
+    seed = 0,
+    worldOffsetX = 0,
+    worldOffsetZ = 0,
+  } = {},
+) {
   const vertexCount = (segmentsX + 1) * (segmentsY + 1);
   const positions = new Float32Array(vertexCount * 3);
   const uvs = new Float32Array(vertexCount * 2);
@@ -77,6 +80,7 @@ export function createTerrainGeometry({
           lacunarity,
           seed,
         ) * heightScale;
+      heightMap[row * (segmentsX + 1) + col] = elevation;
 
       positions[positionIndex++] = x;
       positions[positionIndex++] = elevation;
@@ -152,7 +156,10 @@ export function createTerrainGeometry({
 }
 
 export function createTerrainMesh(options = {}) {
-  const geometry = createTerrainGeometry(options);
+  const heightMap = new Float32Array(
+    (options.segmentsX + 1) * (options.segmentsY + 1),
+  );
+  const geometry = createTerrainGeometry(heightMap, options);
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     flatShading: false,
@@ -160,5 +167,7 @@ export function createTerrainMesh(options = {}) {
     roughness: 0.85,
     metalness: 0.05,
   });
-  return new THREE.Mesh(geometry, material);
+  const terrain = new THREE.Mesh(geometry, material);
+  terrain.heightMap = heightMap;
+  return terrain;
 }

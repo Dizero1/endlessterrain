@@ -103,7 +103,8 @@ function setMovementKey(code, isPressed) {
   if (code === "KeyA") movementState.left = isPressed;
   if (code === "KeyD") movementState.right = isPressed;
   if (code === "Space") movementState.up = isPressed;
-  if (code === "ShiftLeft" || code === "ShiftRight") movementState.down = isPressed;
+  if (code === "ShiftLeft" || code === "ShiftRight")
+    movementState.down = isPressed;
 }
 
 function onKeyDown(event) {
@@ -117,6 +118,15 @@ function onKeyUp(event) {
   setMovementKey(event.code, false);
 }
 
+function getHeight(
+  x,
+  z,
+  positionAttribute,
+  width,
+  depth,
+  segmentsX,
+  segmentsY,
+) {}
 function updateCameraMovement(deltaTime) {
   const distance = cameraController.moveSpeed * deltaTime;
 
@@ -125,7 +135,7 @@ function updateCameraMovement(deltaTime) {
   if (movementState.left) controls.moveRight(-distance);
   if (movementState.right) controls.moveRight(distance);
   if (movementState.up) camera.position.y += distance;
-  if (movementState.down) camera.position.y -= distance; 
+  if (movementState.down) camera.position.y -= distance;
 }
 
 function applyChunkFloatSetting(enabled) {
@@ -294,7 +304,7 @@ function getChunkLodSettings(lodLevel) {
 
   if (lodLevel === "medium") {
     return {
-      treeSampleStep: CONFIG.treeSampleStep ,
+      treeSampleStep: CONFIG.treeSampleStep,
       treeDensity: CONFIG.treeDensity,
       treeLod: CONFIG.treeLod === "high" ? "medium" : CONFIG.treeLod,
       reflectorLod: "medium",
@@ -303,13 +313,18 @@ function getChunkLodSettings(lodLevel) {
 
   return {
     treeSampleStep: Math.max(CONFIG.treeSampleStep * 2, 4),
-    treeDensity: CONFIG.treeDensity * 0.5 ,
+    treeDensity: CONFIG.treeDensity * 0.5,
     treeLod: "low",
     reflectorLod: "low",
   };
 }
 
-function createChunkAt(chunkX, chunkZ, lodLevel, animate = CONFIG.chunkTransitionEnabled) {
+function createChunkAt(
+  chunkX,
+  chunkZ,
+  lodLevel,
+  animate = CONFIG.chunkTransitionEnabled,
+) {
   const lodSettings = getChunkLodSettings(lodLevel);
   const chunk = createTerrainChunk({
     chunkX,
@@ -393,8 +408,14 @@ function updateChunkTransitions(deltaTime) {
 }
 
 function updateChunkRendering(force = false) {
-  const centerChunkX = getCameraChunkCoordinate(camera.position.x, CONFIG.width);
-  const centerChunkZ = getCameraChunkCoordinate(camera.position.z, CONFIG.depth);
+  const centerChunkX = getCameraChunkCoordinate(
+    camera.position.x,
+    CONFIG.width,
+  );
+  const centerChunkZ = getCameraChunkCoordinate(
+    camera.position.z,
+    CONFIG.depth,
+  );
 
   if (
     !force &&
@@ -425,9 +446,8 @@ function updateChunkRendering(force = false) {
       const retiringChunk = retiringChunks.get(chunkId);
       if (retiringChunk) {
         retiringChunks.delete(chunkId);
-        retiringChunk.object.userData.transitionState = CONFIG.chunkTransitionEnabled
-          ? "entering"
-          : "idle";
+        retiringChunk.object.userData.transitionState =
+          CONFIG.chunkTransitionEnabled ? "entering" : "idle";
         if (!CONFIG.chunkTransitionEnabled) {
           retiringChunk.object.position.y = 0;
         }
@@ -435,7 +455,10 @@ function updateChunkRendering(force = false) {
       }
 
       const existingChunk = activeChunks.get(chunkId);
-      if (existingChunk && existingChunk.object.userData.lodLevel === lodLevel) {
+      if (
+        existingChunk &&
+        existingChunk.object.userData.lodLevel === lodLevel
+      ) {
         continue;
       }
 
@@ -486,30 +509,28 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function updateWaterReflector(){
-  if (camera.position.y >= CONFIG.waterReflectionDistance-18){
+function updateWaterReflector() {
+  if (camera.position.y >= CONFIG.waterReflectionDistance - 18) {
     activeChunks.forEach((chunk) => {
       const waterMesh = chunk.waterMesh;
       if (waterMesh?.userData?.setReflectionEnabled) {
         waterMesh.userData.setReflectionEnabled(false);
       }
     });
-  }
-    else{
+  } else {
     activeChunks.forEach((chunk) => {
       const waterMesh = chunk.waterMesh;
       if (waterMesh?.userData?.setReflectionEnabled) {
         waterMesh.userData.setReflectionEnabled(true);
       }
     });
-  // retiringChunks.forEach((chunk) => {
-  //   const waterMesh = chunk.waterMesh;
-  //   if (waterMesh?.userData?.setReflectionEnabled) {
-  //     waterMesh.userData.setReflectionEnabled(false);
-  //   }
-  // });
-}
-
+    // retiringChunks.forEach((chunk) => {
+    //   const waterMesh = chunk.waterMesh;
+    //   if (waterMesh?.userData?.setReflectionEnabled) {
+    //     waterMesh.userData.setReflectionEnabled(false);
+    //   }
+    // });
+  }
 }
 function frame() {
   requestAnimationFrame(frame);

@@ -2,7 +2,9 @@ import * as THREE from "../build/three.module.js";
 import { Reflector } from "../build/objects/Reflector.js";
 
 export function normalizedHeightToHeight(normalizedHeight, heightScale) {
-  return (THREE.MathUtils.clamp(normalizedHeight, 0, 1) - 0.5) * 2 * heightScale;
+  return (
+    (THREE.MathUtils.clamp(normalizedHeight, 0, 1) - 0.5) * 2 * heightScale
+  );
 }
 
 function createWaterOverlayMaterial(opacity, color) {
@@ -24,13 +26,13 @@ export function createWaterMesh({
   level = 0.38,
   opacity = 0.55,
   color = 0x2d8fb8,
-  Lod = "high"
+  Lod = "high",
 } = {}) {
   const water = new THREE.Group();
   const waterY = normalizedHeightToHeight(level, heightScale) + 0.03;
   const reflectionGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
   const overlayGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
-  const size = Lod==="high" ? 512 : 128;
+  const size = Lod === "high" ? 512 : 128;
   const reflector = new Reflector(reflectionGeometry, {
     color: 0x8eb7c5,
     textureWidth: size,
@@ -61,11 +63,13 @@ export function createWaterMesh({
 
   water.userData.reflector = reflector;
   water.userData.overlay = overlay;
-  water.userData.Lod = Lod
+  water.userData.Lod = Lod;
   water.userData.overlayNearOpacity = Math.max(0.18, opacity * 0.45);
   water.userData.overlayFarOpacity = opacity;
   water.userData.setReflectionEnabled = (enabled) => {
-    if (water.userData.Lod==="low"){return}
+    if (water.userData.Lod === "low") {
+      return;
+    }
     const size = Lod === "high" ? 512 : 128;
     water.userData.reflector.getRenderTarget().setSize(size, size);
     reflector.visible = enabled;
@@ -73,8 +77,11 @@ export function createWaterMesh({
       ? water.userData.overlayNearOpacity
       : water.userData.overlayFarOpacity;
   };
-  if (Lod==="low"){water.userData.setReflectionEnabled(false);}
-  else{water.userData.setReflectionEnabled(true);}
+  if (Lod === "low") {
+    water.userData.setReflectionEnabled(false);
+  } else {
+    water.userData.setReflectionEnabled(true);
+  }
 
   return water;
 }
