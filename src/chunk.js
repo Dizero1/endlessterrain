@@ -96,6 +96,7 @@ export function createTerrainChunk({
       heightScale: terrainOptions.heightScale,
       level: waterOptions.level,
       opacity: waterOptions.opacity,
+      Lod: waterOptions.refelctorLod
     });
     waterMesh.position.x = worldOffsetX;
     waterMesh.position.y += yOffset;

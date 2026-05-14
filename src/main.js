@@ -2,6 +2,7 @@ import * as THREE from "../build/three.module.js";
 import { PointerLockControls } from "../build/controls/PointerLockControls.js";
 import { createTerrainChunk } from "./chunk.js";
 import { GUI } from "../build/gui/lil-gui.module.min.js";
+import { Reflector } from "../build/objects/Reflector.js";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0d1725);
@@ -66,7 +67,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
 
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
 const skySphere = createSkySphere();
 scene.add(skySphere);
 
@@ -124,7 +125,7 @@ function updateCameraMovement(deltaTime) {
   if (movementState.left) controls.moveRight(-distance);
   if (movementState.right) controls.moveRight(distance);
   if (movementState.up) camera.position.y += distance;
-  if (movementState.down) camera.position.y -= distance;
+  if (movementState.down) camera.position.y -= distance; 
 }
 
 function applyChunkFloatSetting(enabled) {
@@ -160,9 +161,9 @@ let CONFIG = {
   seed: 42,
   width: 32,
   depth: 32,
-  renderRadius: 5,
-  highLodRadius: 3,
-  mediumLodRadius: 4,
+  renderRadius: 4,
+  highLodRadius: 1,
+  mediumLodRadius: 3,
   chunkTransitionEnabled: true,
   chunkTransitionSpeed: 42,
   chunkFloatDistance: 18,
@@ -179,7 +180,7 @@ let CONFIG = {
   waterEnabled: true,
   waterLevel: 0.38,
   waterOpacity: 0.55,
-  waterReflectionDistance: 42,
+  waterReflectionDistance: 18,
 };
 
 gui
@@ -231,15 +232,11 @@ waterFolder
   .name("Enabled")
   .onChange(regenerateTerrain);
 waterFolder
-  .add(CONFIG, "waterLevel", 0, 1, 0.01)
-  .name("Level")
-  .onChange(regenerateTerrain);
-waterFolder
   .add(CONFIG, "waterOpacity", 0, 1, 0.01)
   .name("Opacity")
   .onChange(regenerateTerrain);
 waterFolder
-  .add(CONFIG, "waterReflectionDistance", 8, 96, 1)
+  .add(CONFIG, "waterReflectionDistance", 8, 42, 1)
   .name("Reflect Dist")
   .onChange(() => {});
 
@@ -291,21 +288,24 @@ function getChunkLodSettings(lodLevel) {
       treeSampleStep: CONFIG.treeSampleStep,
       treeDensity: CONFIG.treeDensity,
       treeLod: CONFIG.treeLod,
+      reflectorLod: "high",
     };
   }
 
   if (lodLevel === "medium") {
     return {
-      treeSampleStep: Math.max(CONFIG.treeSampleStep * 2, 4),
-      treeDensity: CONFIG.treeDensity * 0.6,
+      treeSampleStep: CONFIG.treeSampleStep ,
+      treeDensity: CONFIG.treeDensity,
       treeLod: CONFIG.treeLod === "high" ? "medium" : CONFIG.treeLod,
+      reflectorLod: "medium",
     };
   }
 
   return {
-    treeSampleStep: Math.max(CONFIG.treeSampleStep * 4, 8),
-    treeDensity: CONFIG.treeDensity * 0.25,
+    treeSampleStep: Math.max(CONFIG.treeSampleStep * 2, 4),
+    treeDensity: CONFIG.treeDensity * 0.5 ,
     treeLod: "low",
+    reflectorLod: "low",
   };
 }
 
@@ -339,6 +339,7 @@ function createChunkAt(chunkX, chunkZ, lodLevel, animate = CONFIG.chunkTransitio
       enabled: CONFIG.waterEnabled,
       level: CONFIG.waterLevel,
       opacity: CONFIG.waterOpacity,
+      reflectorLod: lodSettings.reflectorLod,
     },
   });
 
@@ -485,31 +486,43 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function animate() {
-  requestAnimationFrame(animate);
-  const deltaTime = clock.getDelta();
-  const elapsedTime = clock.getElapsedTime();
+function updateWaterReflector(){
+  if (camera.position.y >= CONFIG.waterReflectionDistance-18){
+    activeChunks.forEach((chunk) => {
+      const waterMesh = chunk.waterMesh;
+      if (waterMesh?.userData?.setReflectionEnabled) {
+        waterMesh.userData.setReflectionEnabled(false);
+      }
+    });
+  }
+    else{
+    activeChunks.forEach((chunk) => {
+      const waterMesh = chunk.waterMesh;
+      if (waterMesh?.userData?.setReflectionEnabled) {
+        waterMesh.userData.setReflectionEnabled(true);
+      }
+    });
+  // retiringChunks.forEach((chunk) => {
+  //   const waterMesh = chunk.waterMesh;
+  //   if (waterMesh?.userData?.setReflectionEnabled) {
+  //     waterMesh.userData.setReflectionEnabled(false);
+  //   }
+  // });
+}
+
+}
+function frame() {
+  requestAnimationFrame(frame);
+  timer.update();
+  const deltaTime = timer.getDelta();
+  const elapsedTime = timer.getElapsed();
 
   updateCameraMovement(deltaTime);
   skySphere.position.copy(camera.position);
   updateChunkRendering();
   updateChunkTransitions(deltaTime);
-  activeChunks.forEach((chunk) => {
-    const waterMesh = chunk.waterMesh;
-    if (waterMesh?.userData?.setReflectionEnabled) {
-      const distanceToWater = camera.position.distanceTo(waterMesh.position);
-      waterMesh.userData.setReflectionEnabled(
-        distanceToWater <= CONFIG.waterReflectionDistance,
-      );
-    }
-  });
-  retiringChunks.forEach((chunk) => {
-    const waterMesh = chunk.waterMesh;
-    if (waterMesh?.userData?.setReflectionEnabled) {
-      waterMesh.userData.setReflectionEnabled(false);
-    }
-  });
+  updateWaterReflector();
   renderer.render(scene, camera);
 }
 
-animate();
+frame();

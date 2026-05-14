@@ -7,17 +7,13 @@ function getTerrainColor(normalizedHeight, slopeFactor, targetColor) {
   const C2Brown = new THREE.Color(0x7d5a34); // 褐色
   const C3 = new THREE.Color(0x8d8f95); // 石头灰
 
-  const h1 = 0.84;
+  const h1 = 0.76;
   const h2 = 0.64;
   const h3 = 0.38;
-  const h4 = 0.18;
-const slopeGreenFactor = THREE.MathUtils.smoothstep(
-  slopeFactor,
-  0.5,
-  1,
-);
+  const h4 = 0.22;
+  const slopeGreenFactor = THREE.MathUtils.smoothstep(slopeFactor, 0.5, 1);
 
-const hillColor = C2Green.clone().lerp(C2Brown, slopeGreenFactor * 0.5);
+  const hillColor = C2Green.clone().lerp(C2Brown, slopeGreenFactor * 0.5);
 
   if (normalizedHeight >= h1) {
     targetColor.copy(C1);
