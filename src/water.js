@@ -43,7 +43,7 @@ export function createWaterMesh({
   overlay.position.y = 0.01;
   overlay.receiveShadow = false;
 
-
+  water.add(overlay);
   water.userData.overlay = overlay;
   water.userData.Lod = Lod;
   water.userData.overlayNearOpacity = Math.max(0.18, opacity * 0.45);
