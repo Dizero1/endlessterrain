@@ -184,7 +184,7 @@ window.addEventListener("keydown", onKeyDown);
 window.addEventListener("keyup", onKeyUp);
 
 const gui = new GUI();
-gui.close()
+gui.close();
 let CONFIG = {
   seed: 42,
   width: 32,
@@ -334,6 +334,16 @@ function getChunkLodSettings(lodLevel) {
   };
 }
 
+function updateChunkLod(chunk, lodLevel) {
+  const lodSettings = getChunkLodSettings(lodLevel);
+  chunk.setLod(lodLevel, {
+    sampleStep: lodSettings.treeSampleStep,
+    density: lodSettings.treeDensity,
+    reflectorLod: lodSettings.reflectorLod,
+  });
+  chunk.object.userData.lodLevel = lodLevel;
+}
+
 function createChunkAt(
   chunkX,
   chunkZ,
@@ -461,6 +471,9 @@ function updateChunkRendering(force = false) {
       const retiringChunk = retiringChunks.get(chunkId);
       if (retiringChunk) {
         retiringChunks.delete(chunkId);
+        if (retiringChunk.object.userData.lodLevel !== lodLevel) {
+          updateChunkLod(retiringChunk, lodLevel);
+        }
         retiringChunk.object.userData.transitionState =
           CONFIG.chunkTransitionEnabled ? "entering" : "idle";
         if (!CONFIG.chunkTransitionEnabled) {
@@ -470,24 +483,20 @@ function updateChunkRendering(force = false) {
       }
 
       const existingChunk = activeChunks.get(chunkId);
-      if (
-        existingChunk &&
-        existingChunk.object.userData.lodLevel === lodLevel
-      ) {
-        continue;
-      }
-
-      const isLodReplacement = Boolean(existingChunk);
       if (existingChunk) {
-        disposeChunk(existingChunk);
-        activeChunks.delete(chunkId);
+        if (existingChunk.object.userData.lodLevel === lodLevel) {
+          continue;
+        }
+
+        updateChunkLod(existingChunk, lodLevel);
+        continue;
       }
 
       const chunk = createChunkAt(
         chunkX,
         chunkZ,
         lodLevel,
-        CONFIG.chunkTransitionEnabled && !isLodReplacement,
+        CONFIG.chunkTransitionEnabled,
       );
       activeChunks.set(chunkId, chunk);
       scene.add(chunk.object);
