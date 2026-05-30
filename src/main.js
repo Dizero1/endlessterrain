@@ -19,22 +19,21 @@ function createSkySphere() {
       bottomColor: { value: new THREE.Color(0x1d2f3a) },
     },
     vertexShader: `
-      varying vec3 vWorldPosition;
+      varying vec3 vLocalPosition;
 
       void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
-        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        vLocalPosition = postion;
+        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
       uniform vec3 topColor;
       uniform vec3 horizonColor;
       uniform vec3 bottomColor;
-      varying vec3 vWorldPosition;
+      varying vec3 vLocalPosition;
 
       void main() {
-        float h = normalize(vWorldPosition).y * 0.5 + 0.5;
+        float h = normalize(vLocalPosition).y * 0.5 + 0.5;
         vec3 lower = mix(bottomColor, horizonColor, smoothstep(0.0, 0.55, h));
         vec3 upper = mix(horizonColor, topColor, smoothstep(0.45, 1.0, h));
         vec3 color = mix(lower, upper, smoothstep(0.45, 0.7, h));
