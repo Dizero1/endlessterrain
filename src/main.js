@@ -3,7 +3,6 @@ import { PointerLockControls } from "../build/controls/PointerLockControls.js";
 import { createTerrainChunk } from "./chunk.js";
 import { getTerrainHeight } from "./tree.js";
 import { GUI } from "../build/gui/lil-gui.module.min.js";
-import { Reflector } from "../build/objects/Reflector.js";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0d1725);
@@ -212,7 +211,6 @@ let CONFIG = {
   waterEnabled: true,
   waterLevel: 0.38,
   waterOpacity: 0.55,
-  waterReflectionDistance: 8,
 };
 
 gui
@@ -267,10 +265,6 @@ waterFolder
   .add(CONFIG, "waterOpacity", 0, 1, 0.01)
   .name("Opacity")
   .onChange(regenerateTerrain);
-waterFolder
-  .add(CONFIG, "waterReflectionDistance", 0, 42, 1)
-  .name("Reflect Dist")
-  .onChange(() => {});
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.16);
 const sunLight = new THREE.DirectionalLight(0xfff4d8, 5.0);
@@ -531,29 +525,6 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function updateWaterReflector() {
-  if (camera.position.y >= CONFIG.waterReflectionDistance - 18) {
-    activeChunks.forEach((chunk) => {
-      const waterMesh = chunk.waterMesh;
-      if (waterMesh?.userData?.setReflectionEnabled) {
-        waterMesh.userData.setReflectionEnabled(false);
-      }
-    });
-  } else {
-    activeChunks.forEach((chunk) => {
-      const waterMesh = chunk.waterMesh;
-      if (waterMesh?.userData?.setReflectionEnabled) {
-        waterMesh.userData.setReflectionEnabled(true);
-      }
-    });
-    // retiringChunks.forEach((chunk) => {
-    //   const waterMesh = chunk.waterMesh;
-    //   if (waterMesh?.userData?.setReflectionEnabled) {
-    //     waterMesh.userData.setReflectionEnabled(false);
-    //   }
-    // });
-  }
-}
 function frame() {
   requestAnimationFrame(frame);
   timer.update();
@@ -564,7 +535,6 @@ function frame() {
   skySphere.position.copy(camera.position);
   updateChunkRendering();
   updateChunkTransitions(deltaTime);
-  updateWaterReflector();
   renderer.render(scene, camera);
 }
 

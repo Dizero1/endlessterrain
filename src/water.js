@@ -28,7 +28,6 @@ export function createWaterMesh({
 } = {}) {
   const water = new THREE.Group();
   const waterY = normalizedHeightToHeight(level, heightScale) + 0.03;
-  const reflectionGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
   const overlayGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
   const overlay = new THREE.Mesh(
     overlayGeometry,
@@ -44,9 +43,7 @@ export function createWaterMesh({
   overlay.position.y = 0.01;
   overlay.receiveShadow = false;
 
-  water.add(reflector, overlay);
 
-  water.userData.reflector = reflector;
   water.userData.overlay = overlay;
   water.userData.Lod = Lod;
   water.userData.overlayNearOpacity = Math.max(0.18, opacity * 0.45);
