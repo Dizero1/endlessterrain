@@ -1,5 +1,4 @@
 import * as THREE from "../build/three.module.js";
-import { Reflector } from "../build/objects/Reflector.js";
 
 export function normalizedHeightToHeight(normalizedHeight, heightScale) {
   return (
@@ -31,13 +30,6 @@ export function createWaterMesh({
   const waterY = normalizedHeightToHeight(level, heightScale) + 0.03;
   const reflectionGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
   const overlayGeometry = new THREE.PlaneGeometry(width, depth, 1, 1);
-  const size = Lod === "high" ? 512 : 256;
-  const reflector = new Reflector(reflectionGeometry, {
-    color: 0x8eb7c5,
-    textureWidth: size,
-    textureHeight: size,
-    clipBias: 0.003,
-  });
   const overlay = new THREE.Mesh(
     overlayGeometry,
     createWaterOverlayMaterial(opacity, color),
@@ -46,12 +38,6 @@ export function createWaterMesh({
   water.name = "water";
   water.position.y = waterY;
   water.renderOrder = 1;
-
-  reflector.name = "water-reflector";
-  reflector.rotation.x = -Math.PI * 0.5;
-  reflector.material.transparent = true;
-  reflector.material.opacity = 0.8;
-  reflector.material.depthWrite = false;
 
   overlay.name = "water-overlay";
   overlay.rotation.x = -Math.PI * 0.5;
@@ -65,19 +51,6 @@ export function createWaterMesh({
   water.userData.Lod = Lod;
   water.userData.overlayNearOpacity = Math.max(0.18, opacity * 0.45);
   water.userData.overlayFarOpacity = opacity;
-  water.userData.setReflectionEnabled = (enabled) => {
-    if (water.userData.Lod === "low" || water.userData.Lod === "medium") {
-      reflector.visible = false;
-      return;
-    }
-    const size = Lod === "high" ? 512 : 256;
-    water.userData.reflector.getRenderTarget().setSize(size, size);
-    reflector.visible = enabled;
-    overlay.material.opacity = enabled
-      ? water.userData.overlayNearOpacity
-      : water.userData.overlayFarOpacity;
-  };
-    water.userData.setReflectionEnabled(false);
 
   return water;
 }
