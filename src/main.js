@@ -284,6 +284,9 @@ scene.add(ambientLight, sunLight, hemisphereLight);
 
 const activeChunks = new Map();
 const retiringChunks = new Map();
+const chunkLoadQueue = [];
+const pendingChunkIds = new Set();
+let desiredChunkIds = new Set();
 let lastCameraChunkX = Number.NaN;
 let lastCameraChunkZ = Number.NaN;
 
@@ -342,6 +345,50 @@ function updateChunkLod(chunk, lodLevel) {
     reflectorLod: lodSettings.reflectorLod,
   });
   chunk.object.userData.lodLevel = lodLevel;
+}
+
+function enqueueChunkLoad(chunkX, chunkZ, lodLevel, distance) {
+  const chunkId = `${chunkX},${chunkZ}`;
+  if (activeChunks.has(chunkId) || pendingChunkIds.has(chunkId)) {
+    return;
+  }
+
+  pendingChunkIds.add(chunkId);
+  chunkLoadQueue.push({
+    chunkId,
+    chunkX,
+    chunkZ,
+    lodLevel,
+    distance,
+  });
+  chunkLoadQueue.sort((a, b) => a.distance - b.distance);
+}
+
+function removePendingChunkLoad(chunkId) {
+  if (!pendingChunkIds.delete(chunkId)) return;
+  const index = chunkLoadQueue.findIndex((task) => task.chunkId === chunkId);
+  if (index !== -1) {
+    chunkLoadQueue.splice(index, 1);
+  }
+}
+
+function processChunkLoadQueue(maxLoads = 1) {
+  for (let i = 0; i < maxLoads && chunkLoadQueue.length > 0; i += 1) {
+    const task = chunkLoadQueue.shift();
+    pendingChunkIds.delete(task.chunkId);
+
+    if (activeChunks.has(task.chunkId)) continue;
+    if (!desiredChunkIds.has(task.chunkId)) continue;
+
+    const chunk = createChunkAt(
+      task.chunkX,
+      task.chunkZ,
+      task.lodLevel,
+      CONFIG.chunkTransitionEnabled,
+    );
+    activeChunks.set(task.chunkId, chunk);
+    scene.add(chunk.object);
+  }
 }
 
 function createChunkAt(
@@ -453,7 +500,7 @@ function updateChunkRendering(force = false) {
   lastCameraChunkX = centerChunkX;
   lastCameraChunkZ = centerChunkZ;
 
-  const desiredChunkIds = new Set();
+  desiredChunkIds = new Set();
 
   for (let dz = -CONFIG.renderRadius; dz <= CONFIG.renderRadius; dz++) {
     for (let dx = -CONFIG.renderRadius; dx <= CONFIG.renderRadius; dx++) {
@@ -465,12 +512,14 @@ function updateChunkRendering(force = false) {
         centerChunkX,
         centerChunkZ,
       );
+      const distance = Math.max(Math.abs(dx), Math.abs(dz));
       const chunkId = `${chunkX},${chunkZ}`;
       desiredChunkIds.add(chunkId);
 
       const retiringChunk = retiringChunks.get(chunkId);
       if (retiringChunk) {
         retiringChunks.delete(chunkId);
+        removePendingChunkLoad(chunkId);
         if (retiringChunk.object.userData.lodLevel !== lodLevel) {
           updateChunkLod(retiringChunk, lodLevel);
         }
@@ -484,6 +533,7 @@ function updateChunkRendering(force = false) {
 
       const existingChunk = activeChunks.get(chunkId);
       if (existingChunk) {
+        removePendingChunkLoad(chunkId);
         if (existingChunk.object.userData.lodLevel === lodLevel) {
           continue;
         }
@@ -492,14 +542,7 @@ function updateChunkRendering(force = false) {
         continue;
       }
 
-      const chunk = createChunkAt(
-        chunkX,
-        chunkZ,
-        lodLevel,
-        CONFIG.chunkTransitionEnabled,
-      );
-      activeChunks.set(chunkId, chunk);
-      scene.add(chunk.object);
+      enqueueChunkLoad(chunkX, chunkZ, lodLevel, distance);
     }
   }
 
@@ -542,6 +585,7 @@ function frame() {
   updateCameraMovement(deltaTime);
   skySphere.position.copy(camera.position);
   updateChunkRendering();
+  processChunkLoadQueue(1);
   updateChunkTransitions(deltaTime);
   renderer.render(scene, camera);
 }
